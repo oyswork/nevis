@@ -8,8 +8,19 @@ DESCRIPTION_MAX_LENGTH = 10_000
 SOCIAL_LINK_MAX_LENGTH = 2048
 SOCIAL_LINKS_MAX_COUNT = 20
 
-Name = Annotated[str, StringConstraints(min_length=1, max_length=NAME_MAX_LENGTH)]
-SocialLink = Annotated[str, StringConstraints(min_length=1, max_length=SOCIAL_LINK_MAX_LENGTH)]
+# Postgres text columns can't store NUL; without this the INSERT fails with a 500, not a 422.
+NO_NUL_PATTERN = r"^[^\x00]*$"
+
+Name = Annotated[
+    str, StringConstraints(min_length=1, max_length=NAME_MAX_LENGTH, pattern=NO_NUL_PATTERN)
+]
+SocialLink = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=SOCIAL_LINK_MAX_LENGTH, pattern=NO_NUL_PATTERN),
+]
+Description = Annotated[
+    str, StringConstraints(max_length=DESCRIPTION_MAX_LENGTH, pattern=NO_NUL_PATTERN)
+]
 
 
 class ClientCreate(BaseModel):
@@ -18,7 +29,7 @@ class ClientCreate(BaseModel):
     first_name: Name
     last_name: Name
     email: EmailStr
-    description: Annotated[str, StringConstraints(max_length=DESCRIPTION_MAX_LENGTH)] | None = None
+    description: Description | None = None
     social_links: list[SocialLink] = Field(default_factory=list, max_length=SOCIAL_LINKS_MAX_COUNT)
 
 

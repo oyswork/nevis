@@ -36,6 +36,12 @@ async def test_create_client_rejects_missing_required_field(
         ("social_links", [""]),
         ("social_links", "https://example.com"),
         ("description", "x" * 10_001),
+        # Postgres text columns can't store NUL; reject it here instead of failing on INSERT.
+        ("first_name", "Jo\x00hn"),
+        ("last_name", "Doe\x00"),
+        ("email", "john\x00@neviswealth.com"),
+        ("description", "a\x00b"),
+        ("social_links", ["https://example.com/\x00"]),
     ],
 )
 async def test_create_client_rejects_invalid_field(
