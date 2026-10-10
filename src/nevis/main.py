@@ -19,6 +19,7 @@ from nevis.search.client import (
     create_search_client,
     search_unavailable_handler,
 )
+from nevis.search.router import router as search_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -49,4 +50,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(clients_router)
     app.include_router(documents_router)
+    app.include_router(search_router)
     return app

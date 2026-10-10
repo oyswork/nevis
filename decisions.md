@@ -74,7 +74,16 @@
   - its hits score a flat 1.0, so they are weighted below keyword hits.
 - A second datastore: an outbox, a worker and a reindex path to maintain. New records are
   briefly unsearchable.
-- Typo tolerance returns low-scoring noise, so results need a ranking-score threshold.
+- Semantic scores never drop below ~0.73, even for nonsense, so no score threshold works:
+  - clients and documents are ranked separately, clients first (merging them let document noise
+    push out real client matches);
+  - documents are capped (`documents_limit`), not cut off: there is always a "closest" one;
+  - responses carry no score (hybrid order doesn't even follow `_rankingScore`).
+- Local embedders don't know domain links: "address proof" returns the utility bill, but not
+  first. Larger models (up to bge-large, e5-large) did no better; whole open synonym lists
+  (WordNet) added nothing over embeddings and bring sense noise (`bill` → `beak`).
+- Text without a word (`--`) is a placeholder search in Meilisearch (matches everything), so
+  keyword client search is skipped for it.
 - The first index setup downloads the embedding model (cached in a volume afterwards).
 - Rejected:
   - Elasticsearch: stable `wildcard` substring matching, but see above.
