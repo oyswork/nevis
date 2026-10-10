@@ -16,9 +16,9 @@ CONNECT_TIMEOUT_SECONDS = 5
 COMMAND_TIMEOUT_SECONDS = 10
 
 DATABASE_UNAVAILABLE_DETAIL = "Database unavailable"
+DATABASE_TIMEOUT_DETAIL = "Database timed out"
 # Failures to reach Postgres, as opposed to errors in a statement (those stay 500s). OSError
-# covers refused connections, DNS failures and timeouts (TimeoutError is an OSError); the app
-# does no other I/O that could raise it.
+# covers refused connections and DNS failures; the app does no other I/O that could raise it.
 DATABASE_UNAVAILABLE_ERRORS: tuple[type[Exception], ...] = (
     OSError,
     asyncpg.PostgresConnectionError,
@@ -28,7 +28,9 @@ DATABASE_UNAVAILABLE_ERRORS: tuple[type[Exception], ...] = (
 # OpenAPI `responses` entry for routes that touch the database. Any: matches the type of
 # FastAPI's `responses` parameter, whose values are free-form OpenAPI objects.
 DATABASE_UNAVAILABLE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    status.HTTP_503_SERVICE_UNAVAILABLE: {"description": DATABASE_UNAVAILABLE_DETAIL}
+    status.HTTP_503_SERVICE_UNAVAILABLE: {
+        "description": f"{DATABASE_UNAVAILABLE_DETAIL} or {DATABASE_TIMEOUT_DETAIL.lower()}"
+    }
 }
 
 # A `type` alias is evaluated lazily: asyncpg.Pool is generic only in asyncpg-stubs,
@@ -62,4 +64,14 @@ async def database_unavailable_handler(request: Request, exc: Exception) -> JSON
     logger.warning("Database unavailable: %s %s", request.method, request.url.path, exc_info=exc)
     return JSONResponse(
         {"detail": DATABASE_UNAVAILABLE_DETAIL}, status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+    )
+
+
+async def database_timeout_handler(request: Request, exc: Exception) -> JSONResponse:
+    # TimeoutError is an OSError, but it usually means a statement outran
+    # COMMAND_TIMEOUT_SECONDS (a slow query), not an outage; connecting can also time out.
+    # Registered for TimeoutError itself, so it takes precedence over the OSError handler.
+    logger.warning("Database timed out: %s %s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse(
+        {"detail": DATABASE_TIMEOUT_DETAIL}, status_code=status.HTTP_503_SERVICE_UNAVAILABLE
     )

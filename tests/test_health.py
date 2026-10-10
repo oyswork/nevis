@@ -31,6 +31,22 @@ async def test_readiness_returns_503_when_database_is_unreachable(
     assert response.json() == {"detail": "Database unavailable"}
 
 
+@pytest.mark.unit
+async def test_readiness_returns_503_and_logs_timeout_when_database_times_out(
+    client: AsyncClient, fake_pool: NonCallableMagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    # TimeoutError is an OSError, but a slow statement isn't an outage: log it as a timeout.
+    fake_pool.fetchval.side_effect = TimeoutError
+
+    response = await client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database timed out"}
+    assert [record.getMessage() for record in caplog.records] == [
+        "Database timed out: GET /health/ready"
+    ]
+
+
 @pytest.mark.integration
 async def test_readiness_returns_ok_when_database_is_reachable(db_client: AsyncClient) -> None:
     response = await db_client.get("/health/ready")
