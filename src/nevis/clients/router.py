@@ -22,4 +22,4 @@ async def create_client(payload: ClientCreate, pool: PoolDep) -> ClientRead:
         client = await repository.create_client(pool, payload)
     except repository.EmailAlreadyExistsError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, DUPLICATE_EMAIL_DETAIL) from exc
-    return ClientRead.model_validate(client, from_attributes=True)
+    return ClientRead.model_validate(client)
