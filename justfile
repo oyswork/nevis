@@ -7,6 +7,10 @@ set positional-arguments := true
 
 set dotenv-load := true
 
+# Recipes start the db with `up --wait` and then `run --rm migrate`: `--wait` reports the one-shot
+# migrate as failed even when it exits 0, while `run` blocks until it finishes and returns its
+# exit code, so nothing starts against a half-migrated database.
+
 compose := "docker compose"
 test_compose := "docker compose -f docker-compose.yml -f docker-compose.test.yml"
 dev_database_url := "postgresql://" + env("POSTGRES_USER", "nevis") + ":" + env("POSTGRES_PASSWORD", "nevis") + "@localhost:" + env("POSTGRES_PORT", "5432") + "/" + env("POSTGRES_DB", "nevis")
