@@ -1,14 +1,20 @@
 import uuid
 from typing import Annotated
-from urllib.parse import urlsplit
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    HttpUrl,
+    StringConstraints,
+)
 
 NAME_MAX_LENGTH = 100  # varchar(100) in schema/schema.sql
 DESCRIPTION_MAX_LENGTH = 10_000
 SOCIAL_LINK_MAX_LENGTH = 2048
 SOCIAL_LINKS_MAX_COUNT = 20
-SOCIAL_LINK_SCHEMES = frozenset({"http", "https"})
 
 # Postgres text columns can't store NUL; without this the INSERT fails with a 500, not a 422.
 NO_NUL_PATTERN = r"^[^\x00]*$"
@@ -16,13 +22,7 @@ NO_NUL_PATTERN = r"^[^\x00]*$"
 
 def _require_http_url(value: str) -> str:
     """Accept only absolute http(s) URLs: links get rendered as hrefs (no javascript: or data:)."""
-    parts = urlsplit(value)  # raises ValueError on malformed input, e.g. "https://[::1"
-    if parts.scheme not in SOCIAL_LINK_SCHEMES or not parts.hostname:
-        msg = "must be an absolute http:// or https:// URL"
-        raise ValueError(msg)
-    if any(char.isspace() for char in value):
-        msg = "must not contain whitespace"
-        raise ValueError(msg)
+    HttpUrl(value)
     return value
 
 
