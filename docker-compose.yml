@@ -102,7 +102,7 @@ services:
       - ./src:/app/src:ro
     environment:
       <<: *search-env
-      NEVIS_DATABASE_URL: postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/${POSTGRES_DB:-nevis}
+      NEVIS_DATABASE_URL: &database-url postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/${POSTGRES_DB:-nevis}
     ports:
       - "8000:8000"
     depends_on:
@@ -115,6 +115,25 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # Tool, not part of the stack: empties the search indexes and enqueues an index job for every
+  # client and document (nevis.search.reindex); the api's worker refills them.  `just reindex`
+  reindex:
+    build:
+      context: .
+      target: dev
+    profiles: [tools]
+    command: ["python", "-m", "nevis.search.reindex"]
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      <<: *search-env
+      NEVIS_DATABASE_URL: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
 
 volumes:
   huggingface-cache:

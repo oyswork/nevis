@@ -18,7 +18,8 @@ Everyday commands are `just` recipes (`just` lists them; see `justfile`).
   `NEVIS_MEILISEARCH_URL=http://localhost:7700`, `NEVIS_MEILISEARCH_API_KEY=nevis-dev-master-key`).
 - Dev data lives in `.data/postgres` and `.data/meilisearch` (bind mounts), so it survives
   `just down`; `just clean` deletes it. Embedding models are cached in the `huggingface-cache`
-  volume. After changing index settings, `just search-setup` (safe to re-run).
+  volume. After changing index settings, `just search-setup` (safe to re-run). `just reindex`
+  rebuilds the indexes from Postgres (the running api's worker refills them).
 - Tests in Docker (80% coverage gate): `just test [pytest args]`. Uses the separate test stack
   (`docker-compose.test.yml`: ports 55432 and 57700, tmpfs) and runs pytest in a `tests`
   container with the repository mounted.

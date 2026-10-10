@@ -83,6 +83,11 @@ migrate:
 search-setup:
     {{ compose }} run --rm search-setup
 
+# Rebuild the dev search indexes from Postgres (the running api's worker refills them)
+[group("search")]
+reindex:
+    {{ compose }} run --rm reindex
+
 # Generate a migration from the changes to schema/schema.sql and regenerate the models,
 
 # e.g. `just migration add_documents`
