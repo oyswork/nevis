@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     HttpUrl,
     StringConstraints,
+    field_validator,
 )
 
 NAME_MAX_LENGTH = 100  # varchar(100) in schema/schema.sql
@@ -47,6 +48,12 @@ class ClientCreate(BaseModel):
     email: EmailStr
     description: Description | None = None
     social_links: list[SocialLink] = Field(default_factory=list, max_length=SOCIAL_LINKS_MAX_COUNT)
+
+    @field_validator("description")
+    @classmethod
+    def _blank_description_to_none(cls, description: str | None) -> str | None:
+        # Whitespace is already stripped; keep one representation of "no description".
+        return description or None
 
 
 class ClientRead(BaseModel):

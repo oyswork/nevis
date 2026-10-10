@@ -4,6 +4,8 @@ from unittest.mock import NonCallableMagicMock
 import pytest
 from httpx2 import AsyncClient
 
+from nevis.clients.schemas import ClientCreate
+
 VALID_CLIENT: dict[str, object] = {
     "first_name": "John",
     "last_name": "Doe",
@@ -61,6 +63,15 @@ async def test_create_client_rejects_invalid_field(
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][:2] == ["body", field]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("blank", ["", "   ", "\n\t"])
+def test_client_create_stores_blank_description_as_none(blank: str) -> None:
+    # One representation of "no description": absent, null and blank all become None.
+    client = ClientCreate.model_validate({**VALID_CLIENT, "description": blank})
+
+    assert client.description is None
 
 
 @pytest.mark.unit
