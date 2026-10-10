@@ -18,7 +18,19 @@ Content = Annotated[
 
 
 class DocumentCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "title": "Utility bill March",
+                    "content": "Electricity utility bill from Vattenfall for the apartment at "
+                    "12 Lake Road, Zurich. Billing period March 2026, amount due CHF 84.20.",
+                }
+            ]
+        },
+    )
 
     title: Title
     content: Content

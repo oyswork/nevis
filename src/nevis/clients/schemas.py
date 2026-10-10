@@ -40,7 +40,21 @@ Description = Annotated[
 
 
 class ClientCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "email": "john.doe@neviswealth.com",
+                    "description": "Prefers sustainable funds; retiring in 2030",
+                    "social_links": ["https://www.linkedin.com/in/johndoe"],
+                }
+            ]
+        },
+    )
 
     first_name: Name
     last_name: Name

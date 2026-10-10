@@ -27,7 +27,10 @@ SearchQuery = Annotated[
     StringConstraints(
         strip_whitespace=True, min_length=1, max_length=QUERY_MAX_LENGTH, pattern=NO_NUL_PATTERN
     ),
-    Query(description="Words, a name, an email or part of one, or a topic"),
+    Query(
+        description="Words, a name, an email or part of one, or a topic",
+        examples=["NevisWealth", "wealth", "address proof"],
+    ),
 ]
 
 
