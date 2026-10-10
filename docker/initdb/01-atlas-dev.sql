@@ -1,3 +1,3 @@
--- Empty scratch database for Atlas: `schema apply` loads schema/schema.sql into it to normalize
--- the desired state before diffing. Never holds application data.
+-- Empty scratch database for Atlas: `migrate diff` replays schema/migrations and loads
+-- schema/schema.sql into it to compute the next migration. Never holds application data.
 CREATE DATABASE atlas_dev;

@@ -1,14 +1,16 @@
 # Nevis Search API
 
-FastAPI + raw asyncpg + Postgres 16 with pgvector. Schema managed declaratively by Atlas.
+FastAPI + raw asyncpg + Postgres 16 with pgvector. Schema in `schema/schema.sql`; Atlas
+generates and applies versioned migrations from it.
 Assignment spec: `task.md`.
 
 ## Commands
 
-- Install: `uv sync`. Atlas runs only in Docker (the compose `migrate` service); no local CLI.
+- Install: `uv sync`. Atlas runs only in Docker (the compose `migrate` / `migrate-diff`
+  services); no local CLI.
 - Test infrastructure (start before `pytest`; isolated from the dev stack, port 55432, tmpfs):
   `docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --wait migrate`.
-  Re-run it after editing `schema/schema.sql`; tear down with the same `-f` flags and `down`.
+  Re-run it after adding a migration; tear down with the same `-f` flags and `down`.
 - Test (80% coverage gate): `uv run pytest`. If integration tests are selected and the test
   database isn't reachable, named `*_test` and migrated, pytest aborts before running anything.
   `uv run pytest -m unit` needs no infrastructure.
@@ -22,13 +24,17 @@ Run `pytest`, `mypy` and `ruff` before calling a change done.
 
 ## Schema changes
 
-`schema/schema.sql` is the single source of truth: Atlas applies it declaratively (no migration
-files) and omymodels generates the row models from it.
+`schema/schema.sql` is the single source of truth (see `decisions.md`). Atlas diffs it against
+the migration history to generate versioned migrations in `schema/migrations/`, and omymodels
+generates the row models from it. Commit all three together.
 
 1. Edit `schema/schema.sql`.
-2. `uv run python scripts/generate_models.py` → regenerates `src/nevis/db_models.py`
+2. `docker compose run --rm migrate-diff <name>` → writes `schema/migrations/<timestamp>_<name>.sql`
+   and updates `atlas.sum`. Review the SQL (Atlas generates drops too). It reports "synced" if
+   there is nothing to do.
+3. `uv run python scripts/generate_models.py` → regenerates `src/nevis/db_models.py`
    (never edit it by hand; `tests/test_db_models.py` fails if it's stale).
-3. `docker compose run --rm migrate` applies the change to the local database.
+4. `docker compose run --rm migrate` applies pending migrations to the local database.
 
 Gotchas:
 - Write `timestamptz`, not `timestamp with time zone`: the generator maps `timestamptz` to
@@ -36,6 +42,11 @@ Gotchas:
   spelling to plain `timestamp`, which becomes a naive `datetime.datetime`.
 - Postgres extensions (e.g. `vector`) are an Atlas Pro feature. Create them outside Atlas, in
   `docker/initdb/` (used by both stacks), in both the app and `atlas_dev` databases.
+- Never edit a migration that has been applied anywhere; add a new one. If you must edit an
+  unapplied one, run `docker compose run --rm --entrypoint /atlas migrate-diff migrate hash
+  --env compose` afterwards, or `migrate apply` rejects the directory (checksum in `atlas.sum`).
+- Applied versions are recorded in `public.atlas_schema_revisions`; `migrate apply` refuses a
+  database that has tables but no history (`--baseline <version>` adopts one).
 - Atlas connection settings live in `schema/atlas.hcl` (env `compose`), with URLs from
   `ATLAS_URL` / `ATLAS_DEV_URL`; `docker-compose.test.yml` overrides only those env vars.
 - `docker/initdb/` scripts only run on a fresh volume (`docker compose down -v`).

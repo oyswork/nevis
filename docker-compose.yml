@@ -19,19 +19,36 @@ services:
       timeout: 3s
       retries: 10
 
-  # One-shot: Atlas diffs the database against schema/schema.sql, applies the difference and
-  # exits. The api starts only if it succeeded.
+  # One-shot: Atlas applies the pending files in schema/migrations, records them in the
+  # atlas_schema_revisions table and exits. The api starts only if it succeeded.
   migrate:
     image: arigaio/atlas:1.3.3
     # The "compose" env in schema/atlas.hcl reads the URLs below. The image has no shell, so
     # they can't be expanded inside `command`.
-    command: ["schema", "apply", "--env", "compose", "--auto-approve"]
+    command: ["migrate", "apply", "--env", "compose"]
     working_dir: /schema
     environment:
       ATLAS_URL: postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/${POSTGRES_DB:-nevis}?sslmode=disable&search_path=public
-      ATLAS_DEV_URL: postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/atlas_dev?sslmode=disable&search_path=public
+      ATLAS_DEV_URL: &atlas-dev-url postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/atlas_dev?sslmode=disable&search_path=public
     volumes:
       - ./schema:/schema:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Tool, not part of the stack: writes a migration for the difference between
+  # schema/migrations and schema/schema.sql. Only touches the scratch atlas_dev database.
+  #   docker compose run --rm migrate-diff <name>
+  migrate-diff:
+    image: arigaio/atlas:1.3.3
+    profiles: [tools]
+    # Arguments to `docker compose run` (the migration name) are appended to this.
+    entrypoint: ["/atlas", "migrate", "diff", "--env", "compose"]
+    working_dir: /schema
+    environment:
+      ATLAS_DEV_URL: *atlas-dev-url
+    volumes:
+      - ./schema:/schema
     depends_on:
       db:
         condition: service_healthy
