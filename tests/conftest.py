@@ -75,6 +75,14 @@ async def client(settings: Settings) -> AsyncGenerator[AsyncClient]:
         yield test_client
 
 
+@pytest.fixture
+async def unreachable_db_client() -> AsyncGenerator[AsyncClient]:
+    # Nothing listens on port 1, so every connection attempt is refused immediately.
+    settings = Settings(database_url=PostgresDsn("postgresql://test:test@127.0.0.1:1/test"))
+    async with _serve(create_app(settings)) as test_client:
+        yield test_client
+
+
 @pytest.fixture(scope="session")
 def db_settings() -> Settings:
     return Settings(database_url=PostgresDsn(TEST_DATABASE_URL))

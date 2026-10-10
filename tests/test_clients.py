@@ -70,6 +70,16 @@ async def test_create_client_rejects_unknown_field(client: AsyncClient) -> None:
     assert response.json()["detail"][0]["loc"] == ["body", "is_admin"]
 
 
+@pytest.mark.unit
+async def test_create_client_returns_503_when_database_is_unreachable(
+    unreachable_db_client: AsyncClient,
+) -> None:
+    response = await unreachable_db_client.post("/clients", json=VALID_CLIENT)
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database unavailable"}
+
+
 @pytest.mark.integration
 async def test_create_client_returns_201_with_defaults(db_client: AsyncClient) -> None:
     response = await db_client.post("/clients", json=VALID_CLIENT)

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from nevis.api.health import router as health_router
 from nevis.clients.router import router as clients_router
 from nevis.config import Settings
-from nevis.db import create_pool
+from nevis.db import DATABASE_UNAVAILABLE_ERRORS, create_pool, database_unavailable_handler
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -23,6 +23,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await pool.close()
 
     app = FastAPI(title="Nevis Search API", version="0.1.0", lifespan=lifespan)
+    for error in DATABASE_UNAVAILABLE_ERRORS:
+        app.add_exception_handler(error, database_unavailable_handler)
     app.include_router(health_router)
     app.include_router(clients_router)
     return app

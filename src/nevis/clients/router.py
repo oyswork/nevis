@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from nevis.clients import repository
 from nevis.clients.schemas import ClientCreate, ClientRead
-from nevis.db import PoolDep
+from nevis.db import DATABASE_UNAVAILABLE_RESPONSES, PoolDep
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -12,7 +12,10 @@ DUPLICATE_EMAIL_DETAIL = "A client with this email already exists"
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses={status.HTTP_409_CONFLICT: {"description": DUPLICATE_EMAIL_DETAIL}},
+    responses={
+        status.HTTP_409_CONFLICT: {"description": DUPLICATE_EMAIL_DETAIL},
+        **DATABASE_UNAVAILABLE_RESPONSES,
+    },
 )
 async def create_client(payload: ClientCreate, pool: PoolDep) -> ClientRead:
     try:
