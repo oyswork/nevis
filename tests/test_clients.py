@@ -42,6 +42,15 @@ async def test_create_client_rejects_missing_required_field(
         ("email", "john\x00@neviswealth.com"),
         ("description", "a\x00b"),
         ("social_links", ["https://example.com/\x00"]),
+        # Social links are rendered as hrefs, so only absolute http(s) URLs are accepted.
+        ("social_links", ["javascript:alert(1)"]),
+        ("social_links", ["data:text/html,<script>alert(1)</script>"]),
+        ("social_links", ["ftp://example.com/file"]),
+        ("social_links", ["linkedin.com/in/johndoe"]),
+        ("social_links", ["not a url"]),
+        ("social_links", ["https://"]),
+        ("social_links", ["https://exa mple.com"]),
+        ("social_links", ["https://[::1"]),
     ],
 )
 async def test_create_client_rejects_invalid_field(
