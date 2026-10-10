@@ -1,4 +1,5 @@
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from unittest.mock import NonCallableMagicMock, create_autospec
@@ -14,10 +15,10 @@ from nevis.config import Settings
 from nevis.main import create_app
 
 # Served by docker-compose.test.yml; integration tests never start infrastructure themselves.
-TEST_DATABASE_URL = "postgresql://nevis:nevis@localhost:55432/nevis_test"
-START_TEST_STACK = (
-    "docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --wait migrate"
-)
+# The default is the port the test stack publishes on the host; the `tests` container, which
+# reaches the database over the compose network, overrides it.
+TEST_DATABASE_URL_ENV = "NEVIS_TEST_DATABASE_URL"
+DEFAULT_TEST_DATABASE_URL = "postgresql://nevis:nevis@localhost:55432/nevis_test"
 CONNECT_TIMEOUT_SECONDS = 3
 
 
@@ -26,14 +27,18 @@ def pytest_collection_finish(session: pytest.Session) -> None:
     if not any(item.get_closest_marker("integration") for item in session.items):
         return
     # Collection hooks are synchronous and run before any test event loop exists.
-    problem = asyncio.run(_test_database_problem(TEST_DATABASE_URL))
+    problem = asyncio.run(_test_database_problem(_test_database_url()))
     if problem is not None:
         pytest.exit(
             f"Integration test infrastructure is not ready: {problem}\n"
-            f"Start it with:  {START_TEST_STACK}\n"
+            "Start it with:  just test-infra  (or run everything in Docker:  just test)\n"
             "Or run only unit tests:  uv run pytest -m unit",
             returncode=pytest.ExitCode.USAGE_ERROR,
         )
+
+
+def _test_database_url() -> str:
+    return os.environ.get(TEST_DATABASE_URL_ENV, DEFAULT_TEST_DATABASE_URL)
 
 
 async def _test_database_problem(url: str) -> str | None:
@@ -94,7 +99,7 @@ async def client(
 
 @pytest.fixture(scope="session")
 def db_settings() -> Settings:
-    return Settings(database_url=PostgresDsn(TEST_DATABASE_URL))
+    return Settings(database_url=PostgresDsn(_test_database_url()))
 
 
 @pytest.fixture

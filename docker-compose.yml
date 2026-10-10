@@ -9,7 +9,8 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # On the host, so dev data survives `down`; delete it with `just clean`.
+      - ./.data/postgres:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # Over TCP: during first-start init scripts Postgres listens only on the unix socket,
@@ -53,8 +54,15 @@ services:
       db:
         condition: service_healthy
 
+  # Development server: the dev image with src/ mounted from the host and auto-reload.
   api:
-    build: .
+    build:
+      context: .
+      target: dev
+    command: ["uvicorn", "--factory", "nevis.main:create_app", "--host", "0.0.0.0", "--port", "8000",
+              "--reload", "--reload-dir", "/app/src"]
+    volumes:
+      - ./src:/app/src:ro
     environment:
       NEVIS_DATABASE_URL: postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/${POSTGRES_DB:-nevis}
     ports:
@@ -67,6 +75,3 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-
-volumes:
-  pgdata:

@@ -8,3 +8,6 @@ __pycache__/
 htmlcov/
 .env
 .DS_Store
+
+# Local dev database (docker compose bind mount); `just clean` deletes it.
+.data/
