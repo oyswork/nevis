@@ -9,16 +9,23 @@ import asyncpg
 import pytest
 from fastapi import FastAPI
 from httpx2 import ASGITransport, AsyncClient
-from pydantic import PostgresDsn
+from meilisearch_python_sdk import AsyncClient as SearchClient
+from meilisearch_python_sdk.errors import MeilisearchApiError, MeilisearchCommunicationError
+from pydantic import HttpUrl, PostgresDsn, SecretStr
 
 from nevis.config import Settings
 from nevis.main import create_app
+from nevis.search.indexes import CLIENTS_INDEX
 
 # Served by docker-compose.test.yml; integration tests never start infrastructure themselves.
 # The default is the port the test stack publishes on the host; the `tests` container, which
 # reaches the database over the compose network, overrides it.
 TEST_DATABASE_URL_ENV = "NEVIS_TEST_DATABASE_URL"
 DEFAULT_TEST_DATABASE_URL = "postgresql://nevis:nevis@localhost:55432/nevis_test"
+TEST_MEILISEARCH_URL_ENV = "NEVIS_TEST_MEILISEARCH_URL"
+DEFAULT_TEST_MEILISEARCH_URL = "http://localhost:57700"
+# The test stack's master key (docker-compose.test.yml); it guards nothing but throwaway data.
+TEST_MEILISEARCH_API_KEY = "nevis-test-master-key"
 CONNECT_TIMEOUT_SECONDS = 3
 
 
@@ -27,7 +34,9 @@ def pytest_collection_finish(session: pytest.Session) -> None:
     if not any(item.get_closest_marker("integration") for item in session.items):
         return
     # Collection hooks are synchronous and run before any test event loop exists.
-    problem = asyncio.run(_test_database_problem(_test_database_url()))
+    problem = asyncio.run(_test_database_problem(_test_database_url())) or asyncio.run(
+        _test_search_problem(_test_meilisearch_url())
+    )
     if problem is not None:
         pytest.exit(
             f"Integration test infrastructure is not ready: {problem}\n"
@@ -39,6 +48,10 @@ def pytest_collection_finish(session: pytest.Session) -> None:
 
 def _test_database_url() -> str:
     return os.environ.get(TEST_DATABASE_URL_ENV, DEFAULT_TEST_DATABASE_URL)
+
+
+def _test_meilisearch_url() -> str:
+    return os.environ.get(TEST_MEILISEARCH_URL_ENV, DEFAULT_TEST_MEILISEARCH_URL)
 
 
 async def _test_database_problem(url: str) -> str | None:
@@ -60,6 +73,19 @@ async def _test_database_problem(url: str) -> str | None:
     return None
 
 
+async def _test_search_problem(url: str) -> str | None:
+    async with SearchClient(
+        url, TEST_MEILISEARCH_API_KEY, timeout=CONNECT_TIMEOUT_SECONDS
+    ) as client:
+        try:
+            await client.get_index(CLIENTS_INDEX)
+        except MeilisearchCommunicationError as exc:
+            return f"cannot connect to Meilisearch at {url} ({exc.message})"
+        except MeilisearchApiError as exc:
+            return f"search indexes not set up at {url} ({exc.code})"
+    return None
+
+
 @asynccontextmanager
 async def _serve(app: FastAPI) -> AsyncGenerator[AsyncClient]:
     # ASGITransport doesn't run the lifespan, so enter it here: it creates and closes the pool.
@@ -72,8 +98,12 @@ async def _serve(app: FastAPI) -> AsyncGenerator[AsyncClient]:
 
 @pytest.fixture
 def settings() -> Settings:
-    # Never connected to: the `client` fixture replaces the pool.
-    return Settings(database_url=PostgresDsn("postgresql://unused@unused.invalid/unused"))
+    # Never connected to: the `client` fixture replaces the pool and the search client.
+    return Settings(
+        database_url=PostgresDsn("postgresql://unused@unused.invalid/unused"),
+        meilisearch_url=HttpUrl("http://unused.invalid"),
+        meilisearch_api_key=SecretStr("unused-unused-unused"),
+    )
 
 
 @pytest.fixture
@@ -84,22 +114,40 @@ def fake_pool() -> NonCallableMagicMock:
 
 
 @pytest.fixture
+def fake_search_client() -> NonCallableMagicMock:
+    """The Meilisearch client behind `client`; configure its methods per test."""
+    search_client: NonCallableMagicMock = create_autospec(SearchClient, instance=True)
+    return search_client
+
+
+@pytest.fixture
 async def client(
-    settings: Settings, fake_pool: NonCallableMagicMock, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    fake_pool: NonCallableMagicMock,
+    fake_search_client: NonCallableMagicMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncGenerator[AsyncClient]:
-    """App client for unit tests: no database, the lifespan gets `fake_pool` instead."""
+    """App client for unit tests: no infrastructure, the lifespan gets the fakes instead."""
 
     async def create_fake_pool(_: Settings) -> NonCallableMagicMock:
         return fake_pool
 
+    def create_fake_search_client(_: Settings) -> NonCallableMagicMock:
+        return fake_search_client
+
     monkeypatch.setattr("nevis.main.create_pool", create_fake_pool)
+    monkeypatch.setattr("nevis.main.create_search_client", create_fake_search_client)
     async with _serve(create_app(settings)) as test_client:
         yield test_client
 
 
 @pytest.fixture(scope="session")
 def db_settings() -> Settings:
-    return Settings(database_url=PostgresDsn(_test_database_url()))
+    return Settings(
+        database_url=PostgresDsn(_test_database_url()),
+        meilisearch_url=HttpUrl(_test_meilisearch_url()),
+        meilisearch_api_key=SecretStr(TEST_MEILISEARCH_API_KEY),
+    )
 
 
 @pytest.fixture

@@ -1,7 +1,8 @@
 # Nevis Search API
 
-FastAPI + raw asyncpg + Postgres 16 with pgvector. Schema in `schema/schema.sql`; Atlas
-generates and applies versioned migrations from it.
+FastAPI + raw asyncpg + Postgres 16, with a Meilisearch index derived from Postgres for search
+(`decisions.md`). Schema in `schema/schema.sql`; Atlas generates and applies versioned migrations
+from it. Index settings live in `src/nevis/search/indexes.py`; `search-setup` applies them.
 Assignment spec: `task.md`.
 
 ## Commands
@@ -13,20 +14,23 @@ Everyday commands are `just` recipes (`just` lists them; see `justfile`).
 - Whole system in Docker: `just up` → http://localhost:8000/docs. The api runs the `dev` image
   stage with `src/` mounted and `--reload`; `just logs`, `just down`.
 - Infra only, api on the host (to debug it): `just infra`, then `just run` (or your debugger
-  with `NEVIS_DATABASE_URL=postgresql://nevis:nevis@localhost:5432/nevis`).
-- Dev database files live in `.data/postgres` (bind mount), so they survive `just down`;
-  `just clean` deletes them.
+  with `NEVIS_DATABASE_URL=postgresql://nevis:nevis@localhost:5432/nevis`,
+  `NEVIS_MEILISEARCH_URL=http://localhost:7700`, `NEVIS_MEILISEARCH_API_KEY=nevis-dev-master-key`).
+- Dev data lives in `.data/postgres` and `.data/meilisearch` (bind mounts), so it survives
+  `just down`; `just clean` deletes it. Embedding models are cached in the `huggingface-cache`
+  volume. After changing index settings, `just search-setup` (safe to re-run).
 - Tests in Docker (80% coverage gate): `just test [pytest args]`. Uses the separate test stack
-  (`docker-compose.test.yml`: port 55432, tmpfs) and runs pytest in a `tests` container with the
-  repository mounted.
+  (`docker-compose.test.yml`: ports 55432 and 57700, tmpfs) and runs pytest in a `tests`
+  container with the repository mounted.
 - Tests on the host: `just test-infra` (re-run after adding a migration), then `uv run pytest`.
   If integration tests are selected and the test database isn't reachable, named `*_test` and
-  migrated, pytest aborts before running anything. `uv run pytest -m unit` needs no
-  infrastructure. The database URL defaults to localhost:55432 (`NEVIS_TEST_DATABASE_URL`).
+  migrated, or Meilisearch isn't reachable and set up, pytest aborts before running anything.
+  `uv run pytest -m unit` needs no infrastructure. URLs default to localhost:55432 and
+  localhost:57700 (`NEVIS_TEST_DATABASE_URL`, `NEVIS_TEST_MEILISEARCH_URL`).
 - Lint, format check, type check (strict): `just check`; fix with
   `uv run ruff check --fix . && uv run ruff format .`
-- Don't use `docker compose up --wait migrate`: `--wait` reports the one-shot `migrate` as
-  failed even when it exits 0. Wait for `db`, then `docker compose run --rm migrate`.
+- Don't use `docker compose up --wait migrate` (or `search-setup`): `--wait` reports a one-shot
+  as failed even when it exits 0. Wait for `db` / `meilisearch`, then `docker compose run --rm`.
 
 Run `just test` and `just check` before calling a change done.
 

@@ -1,13 +1,23 @@
-from pydantic import PostgresDsn, field_validator
+from pydantic import HttpUrl, PostgresDsn, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ASYNCPG_SCHEMES = frozenset({"postgresql", "postgres"})
 
 
-class Settings(BaseSettings):
-    """Runtime configuration, read from ``NEVIS_*`` environment variables."""
+class SearchSettings(BaseSettings):
+    """Meilisearch connection, read from ``NEVIS_*`` environment variables.
+
+    On its own for ``nevis.search.setup``, which needs no database.
+    """
 
     model_config = SettingsConfigDict(env_prefix="NEVIS_", frozen=True, extra="ignore")
+
+    meilisearch_url: HttpUrl
+    meilisearch_api_key: SecretStr
+
+
+class Settings(SearchSettings):
+    """Runtime configuration of the app, read from ``NEVIS_*`` environment variables."""
 
     database_url: PostgresDsn
 

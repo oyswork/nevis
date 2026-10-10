@@ -2,9 +2,10 @@ from unittest.mock import NonCallableMagicMock
 
 import pytest
 from httpx2 import AsyncClient
-from pydantic import PostgresDsn, ValidationError
+from meilisearch_python_sdk.errors import MeilisearchCommunicationError
+from pydantic import HttpUrl, PostgresDsn, SecretStr, ValidationError
 
-from nevis.config import Settings
+from nevis.config import SearchSettings, Settings
 
 
 @pytest.mark.unit
@@ -56,8 +57,36 @@ async def test_readiness_returns_ok_when_database_is_reachable(db_client: AsyncC
 
 
 @pytest.mark.unit
+async def test_readiness_returns_503_when_search_is_unreachable(
+    client: AsyncClient, fake_search_client: NonCallableMagicMock
+) -> None:
+    fake_search_client.health.side_effect = MeilisearchCommunicationError("connection refused")
+
+    response = await client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Search unavailable"}
+
+
+@pytest.mark.unit
+def test_search_settings_read_meilisearch_url_and_key_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("NEVIS_MEILISEARCH_URL", "http://meilisearch:7700")
+    monkeypatch.setenv("NEVIS_MEILISEARCH_API_KEY", "a-key-of-at-least-16-bytes")
+
+    settings = SearchSettings()
+
+    assert str(settings.meilisearch_url) == "http://meilisearch:7700/"
+    assert settings.meilisearch_api_key.get_secret_value() == "a-key-of-at-least-16-bytes"
+    assert "a-key-of-at-least-16-bytes" not in repr(settings)
+
+
+@pytest.mark.unit
 def test_settings_read_database_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NEVIS_DATABASE_URL", "postgresql://u:p@db:5432/nevis")
+    monkeypatch.setenv("NEVIS_MEILISEARCH_URL", "http://meilisearch:7700")
+    monkeypatch.setenv("NEVIS_MEILISEARCH_API_KEY", "a-key-of-at-least-16-bytes")
 
     settings = Settings()
 
@@ -69,4 +98,8 @@ def test_settings_read_database_url_from_env(monkeypatch: pytest.MonkeyPatch) ->
 def test_settings_reject_driver_qualified_database_url(scheme: str) -> None:
     # asyncpg only understands plain postgresql:// / postgres:// DSNs.
     with pytest.raises(ValidationError, match="plain postgresql://"):
-        Settings(database_url=PostgresDsn(f"{scheme}://u:p@db:5432/nevis"))
+        Settings(
+            database_url=PostgresDsn(f"{scheme}://u:p@db:5432/nevis"),
+            meilisearch_url=HttpUrl("http://meilisearch:7700"),
+            meilisearch_api_key=SecretStr("a-key-of-at-least-16-bytes"),
+        )
