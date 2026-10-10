@@ -1,3 +1,5 @@
+from unittest.mock import NonCallableMagicMock
+
 import pytest
 from httpx2 import AsyncClient
 from pydantic import PostgresDsn, ValidationError
@@ -6,26 +8,24 @@ from nevis.config import Settings
 
 
 @pytest.mark.unit
-async def test_health_returns_ok(client: AsyncClient) -> None:
+async def test_health_returns_ok_without_touching_database(
+    client: AsyncClient, fake_pool: NonCallableMagicMock
+) -> None:
+    # Liveness: a database outage must not make the orchestrator restart healthy app instances.
     response = await client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-
-
-@pytest.mark.unit
-async def test_health_does_not_depend_on_database(unreachable_db_client: AsyncClient) -> None:
-    # Liveness: a database outage must not make the orchestrator restart healthy app instances.
-    response = await unreachable_db_client.get("/health")
-
-    assert response.status_code == 200
+    assert fake_pool.mock_calls == []
 
 
 @pytest.mark.unit
 async def test_readiness_returns_503_when_database_is_unreachable(
-    unreachable_db_client: AsyncClient,
+    client: AsyncClient, fake_pool: NonCallableMagicMock
 ) -> None:
-    response = await unreachable_db_client.get("/health/ready")
+    fake_pool.fetchval.side_effect = ConnectionRefusedError
+
+    response = await client.get("/health/ready")
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Database unavailable"}

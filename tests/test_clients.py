@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import NonCallableMagicMock
 
 import pytest
 from httpx2 import AsyncClient
@@ -72,9 +73,11 @@ async def test_create_client_rejects_unknown_field(client: AsyncClient) -> None:
 
 @pytest.mark.unit
 async def test_create_client_returns_503_when_database_is_unreachable(
-    unreachable_db_client: AsyncClient,
+    client: AsyncClient, fake_pool: NonCallableMagicMock
 ) -> None:
-    response = await unreachable_db_client.post("/clients", json=VALID_CLIENT)
+    fake_pool.fetchrow.side_effect = ConnectionRefusedError
+
+    response = await client.post("/clients", json=VALID_CLIENT)
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Database unavailable"}

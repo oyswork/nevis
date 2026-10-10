@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from unittest.mock import NonCallableMagicMock, create_autospec
 from urllib.parse import urlsplit
 
 import asyncpg
@@ -66,19 +67,27 @@ async def _serve(app: FastAPI) -> AsyncGenerator[AsyncClient]:
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(database_url=PostgresDsn("postgresql://test:test@localhost:5432/test"))
+    # Never connected to: the `client` fixture replaces the pool.
+    return Settings(database_url=PostgresDsn("postgresql://unused@unused.invalid/unused"))
 
 
 @pytest.fixture
-async def client(settings: Settings) -> AsyncGenerator[AsyncClient]:
-    async with _serve(create_app(settings)) as test_client:
-        yield test_client
+def fake_pool() -> NonCallableMagicMock:
+    """The asyncpg pool behind `client`; configure its methods (e.g. side_effect) per test."""
+    pool: NonCallableMagicMock = create_autospec(asyncpg.Pool, instance=True)
+    return pool
 
 
 @pytest.fixture
-async def unreachable_db_client() -> AsyncGenerator[AsyncClient]:
-    # Nothing listens on port 1, so every connection attempt is refused immediately.
-    settings = Settings(database_url=PostgresDsn("postgresql://test:test@127.0.0.1:1/test"))
+async def client(
+    settings: Settings, fake_pool: NonCallableMagicMock, monkeypatch: pytest.MonkeyPatch
+) -> AsyncGenerator[AsyncClient]:
+    """App client for unit tests: no database, the lifespan gets `fake_pool` instead."""
+
+    async def create_fake_pool(_: Settings) -> NonCallableMagicMock:
+        return fake_pool
+
+    monkeypatch.setattr("nevis.main.create_pool", create_fake_pool)
     async with _serve(create_app(settings)) as test_client:
         yield test_client
 
