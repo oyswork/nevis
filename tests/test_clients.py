@@ -1,9 +1,11 @@
 import uuid
 from unittest.mock import NonCallableMagicMock
 
+import asyncpg
 import pytest
 from httpx2 import AsyncClient
 
+from nevis.clients import repository
 from nevis.clients.schemas import ClientCreate
 
 VALID_CLIENT: dict[str, object] = {
@@ -92,6 +94,22 @@ async def test_create_client_returns_503_when_database_is_unreachable(
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Database unavailable"}
+
+
+@pytest.mark.unit
+async def test_create_client_reraises_unique_violation_on_other_constraint(
+    fake_pool: NonCallableMagicMock,
+) -> None:
+    # Only the email index means "duplicate email"; anything else (e.g. a primary key clash)
+    # must not be reported to the user as a 409.
+    violation = asyncpg.UniqueViolationError("duplicate key value")
+    violation.constraint_name = "clients_pkey"
+    fake_pool.fetchrow.side_effect = violation
+
+    with pytest.raises(asyncpg.UniqueViolationError) as raised:
+        await repository.create_client(fake_pool, ClientCreate.model_validate(VALID_CLIENT))
+
+    assert raised.value is violation
 
 
 @pytest.mark.integration
