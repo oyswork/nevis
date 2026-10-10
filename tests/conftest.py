@@ -1,10 +1,12 @@
 import asyncio
-from collections.abc import Iterator
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 import asyncpg
 import pytest
-from fastapi.testclient import TestClient
+from fastapi import FastAPI
+from httpx2 import ASGITransport, AsyncClient
 from pydantic import PostgresDsn
 
 from nevis.config import Settings
@@ -22,6 +24,7 @@ def pytest_collection_finish(session: pytest.Session) -> None:
     """Abort before running anything if integration tests are selected but infra isn't up."""
     if not any(item.get_closest_marker("integration") for item in session.items):
         return
+    # Collection hooks are synchronous and run before any test event loop exists.
     problem = asyncio.run(_test_database_problem(TEST_DATABASE_URL))
     if problem is not None:
         pytest.exit(
@@ -51,14 +54,24 @@ async def _test_database_problem(url: str) -> str | None:
     return None
 
 
+@asynccontextmanager
+async def _serve(app: FastAPI) -> AsyncGenerator[AsyncClient]:
+    # ASGITransport doesn't run the lifespan, so enter it here: it creates and closes the pool.
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        yield client
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings(database_url=PostgresDsn("postgresql://test:test@localhost:5432/test"))
 
 
 @pytest.fixture
-def client(settings: Settings) -> Iterator[TestClient]:
-    with TestClient(create_app(settings)) as test_client:
+async def client(settings: Settings) -> AsyncGenerator[AsyncClient]:
+    async with _serve(create_app(settings)) as test_client:
         yield test_client
 
 
@@ -68,9 +81,9 @@ def db_settings() -> Settings:
 
 
 @pytest.fixture
-def db_client(db_settings: Settings) -> Iterator[TestClient]:
-    asyncio.run(_execute(str(db_settings.database_url), "TRUNCATE clients CASCADE"))
-    with TestClient(create_app(db_settings)) as test_client:
+async def db_client(db_settings: Settings) -> AsyncGenerator[AsyncClient]:
+    await _execute(str(db_settings.database_url), "TRUNCATE clients CASCADE")
+    async with _serve(create_app(db_settings)) as test_client:
         yield test_client
 
 

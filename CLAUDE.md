@@ -49,4 +49,7 @@ Gotchas:
 - Inject the pool, not a connection: a connection dependency is acquired before FastAPI rejects
   an invalid body. Use `pool.fetchrow(...)` for single statements, `pool.acquire()` for transactions.
 - Mark tests `unit` (no external services) or `integration` (needs Postgres).
+- Tests are async (pytest-asyncio, `asyncio_mode = "auto"`, so no `@pytest.mark.asyncio`). Use
+  the `client` / `db_client` fixtures: an `httpx2.AsyncClient` over ASGI with the app lifespan
+  running. Write `(await client.post(...)).json()`, not `await client.post(...).json()`.
 - Add dependencies with `uv add` / `uv add --dev` and commit `uv.lock`.

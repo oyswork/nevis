@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx2 import AsyncClient
 
 VALID_CLIENT: dict[str, object] = {
     "first_name": "John",
@@ -12,10 +12,12 @@ VALID_CLIENT: dict[str, object] = {
 
 @pytest.mark.unit
 @pytest.mark.parametrize("missing", ["first_name", "last_name", "email"])
-def test_create_client_rejects_missing_required_field(client: TestClient, missing: str) -> None:
+async def test_create_client_rejects_missing_required_field(
+    client: AsyncClient, missing: str
+) -> None:
     payload = {key: value for key, value in VALID_CLIENT.items() if key != missing}
 
-    response = client.post("/clients", json=payload)
+    response = await client.post("/clients", json=payload)
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", missing]
@@ -36,24 +38,26 @@ def test_create_client_rejects_missing_required_field(client: TestClient, missin
         ("description", "x" * 10_001),
     ],
 )
-def test_create_client_rejects_invalid_field(client: TestClient, field: str, value: object) -> None:
-    response = client.post("/clients", json={**VALID_CLIENT, field: value})
+async def test_create_client_rejects_invalid_field(
+    client: AsyncClient, field: str, value: object
+) -> None:
+    response = await client.post("/clients", json={**VALID_CLIENT, field: value})
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][:2] == ["body", field]
 
 
 @pytest.mark.unit
-def test_create_client_rejects_unknown_field(client: TestClient) -> None:
-    response = client.post("/clients", json={**VALID_CLIENT, "is_admin": True})
+async def test_create_client_rejects_unknown_field(client: AsyncClient) -> None:
+    response = await client.post("/clients", json={**VALID_CLIENT, "is_admin": True})
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "is_admin"]
 
 
 @pytest.mark.integration
-def test_create_client_returns_201_with_defaults(db_client: TestClient) -> None:
-    response = db_client.post("/clients", json=VALID_CLIENT)
+async def test_create_client_returns_201_with_defaults(db_client: AsyncClient) -> None:
+    response = await db_client.post("/clients", json=VALID_CLIENT)
 
     assert response.status_code == 201
     body = response.json()
@@ -62,7 +66,9 @@ def test_create_client_returns_201_with_defaults(db_client: TestClient) -> None:
 
 
 @pytest.mark.integration
-def test_create_client_stores_optional_fields_and_trims_whitespace(db_client: TestClient) -> None:
+async def test_create_client_stores_optional_fields_and_trims_whitespace(
+    db_client: AsyncClient,
+) -> None:
     payload = {
         **VALID_CLIENT,
         "first_name": "  John ",
@@ -70,7 +76,7 @@ def test_create_client_stores_optional_fields_and_trims_whitespace(db_client: Te
         "social_links": ["https://linkedin.com/in/johndoe"],
     }
 
-    response = db_client.post("/clients", json=payload)
+    response = await db_client.post("/clients", json=payload)
 
     assert response.status_code == 201
     body = response.json()
@@ -80,20 +86,22 @@ def test_create_client_stores_optional_fields_and_trims_whitespace(db_client: Te
 
 
 @pytest.mark.integration
-def test_create_client_assigns_distinct_ids(db_client: TestClient) -> None:
-    first = db_client.post("/clients", json=VALID_CLIENT).json()
-    second = db_client.post(
-        "/clients", json={**VALID_CLIENT, "email": "jane.doe@neviswealth.com"}
+async def test_create_client_assigns_distinct_ids(db_client: AsyncClient) -> None:
+    first = (await db_client.post("/clients", json=VALID_CLIENT)).json()
+    second = (
+        await db_client.post("/clients", json={**VALID_CLIENT, "email": "jane.doe@neviswealth.com"})
     ).json()
 
     assert first["id"] != second["id"]
 
 
 @pytest.mark.integration
-def test_create_client_rejects_duplicate_email_case_insensitively(db_client: TestClient) -> None:
-    assert db_client.post("/clients", json=VALID_CLIENT).status_code == 201
+async def test_create_client_rejects_duplicate_email_case_insensitively(
+    db_client: AsyncClient,
+) -> None:
+    assert (await db_client.post("/clients", json=VALID_CLIENT)).status_code == 201
 
-    response = db_client.post(
+    response = await db_client.post(
         "/clients", json={**VALID_CLIENT, "email": "John.Doe@NevisWealth.com"}
     )
 

@@ -23,6 +23,7 @@ dev = [
     "mypy>=2.4.0",
     "omymodels>=1.0.0",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.10",
 ]
@@ -71,6 +72,9 @@ warn_required_dynamic_aliases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["scripts"]  # tests import generate_models
+# Async tests and fixtures run without per-test markers, each in its own event loop.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra --strict-markers --cov=nevis --cov-report=term-missing --cov-fail-under=80"
 markers = [
     "unit: fast tests with no external services",
