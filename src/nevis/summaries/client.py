@@ -1,0 +1,80 @@
+"""Summaries from a locally running model over the OpenAI-compatible chat API.
+
+Ollama, LM Studio, llama.cpp and vLLM all serve it. There is deliberately no API key setting:
+summaries come only from a local model (decisions.md).
+"""
+
+from typing import Annotated
+
+from fastapi import Depends, Request
+from httpx2 import AsyncClient
+from pydantic import BaseModel
+
+from nevis.config import Settings
+
+# Fits the context window of small local models; longer documents are summarized from the start.
+CONTENT_MAX_CHARS = 12_000
+# Local models are slow. Must stay under the outbox lease, or a slow job runs twice.
+REQUEST_TIMEOUT_SECONDS = 90
+SYSTEM_PROMPT = (
+    "You summarize documents for a financial advisor. Reply with two or three plain sentences: "
+    "what the document is and its key facts. No preamble, no formatting."
+)
+
+
+class _Message(BaseModel):
+    content: str | None = None
+
+
+class _Choice(BaseModel):
+    message: _Message
+
+
+class _Completion(BaseModel):
+    choices: list[_Choice]
+
+
+class LocalSummarizer:
+    def __init__(self, http_client: AsyncClient, model: str) -> None:
+        self._http_client = http_client
+        self._model = model
+
+    async def summarize(self, title: str, content: str) -> str:
+        response = await self._http_client.post(
+            "chat/completions",
+            json={
+                "model": self._model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"{title}\n\n{content[:CONTENT_MAX_CHARS]}"},
+                ],
+            },
+        )
+        response.raise_for_status()
+        choices = _Completion.model_validate(response.json()).choices
+        summary = (choices[0].message.content or "").strip() if choices else ""
+        if not summary:
+            msg = "the model returned no summary"
+            raise ValueError(msg)
+        return summary
+
+    async def aclose(self) -> None:
+        await self._http_client.aclose()
+
+
+def create_summarizer(settings: Settings) -> LocalSummarizer | None:
+    """The configured summarizer, or None: then documents are never summarized."""
+    if settings.summary_api_url is None or settings.summary_model is None:
+        return None
+    # Trailing slash: request paths are joined onto the URL's path (e.g. /v1/).
+    base_url = str(settings.summary_api_url).rstrip("/") + "/"
+    http_client = AsyncClient(base_url=base_url, timeout=REQUEST_TIMEOUT_SECONDS)
+    return LocalSummarizer(http_client, settings.summary_model)
+
+
+def get_summarizer(request: Request) -> LocalSummarizer | None:
+    summarizer: LocalSummarizer | None = request.app.state.summarizer
+    return summarizer
+
+
+SummarizerDep = Annotated[LocalSummarizer | None, Depends(get_summarizer)]

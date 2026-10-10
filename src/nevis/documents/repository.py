@@ -22,8 +22,11 @@ class ClientNotFoundError(Exception):
     """The document's client doesn't exist."""
 
 
-async def create_document(pool: DbPool, client_id: uuid.UUID, data: DocumentCreate) -> Document:
-    """Insert the document and, in the same transaction, the job that indexes it for search."""
+async def create_document(
+    pool: DbPool, client_id: uuid.UUID, data: DocumentCreate, *, summarize: bool
+) -> Document:
+    """Insert the document and, in the same transaction, the jobs that index it for search
+    and, if `summarize`, summarize it."""
     try:
         async with pool.acquire() as connection, connection.transaction():
             row = await connection.fetchrow(INSERT_DOCUMENT, client_id, data.title, data.content)
@@ -32,6 +35,8 @@ async def create_document(pool: DbPool, client_id: uuid.UUID, data: DocumentCrea
                 raise RuntimeError(msg)
             document = Document(**row)
             await outbox.enqueue(connection, OutboxKind.INDEX_DOCUMENT, document.id)
+            if summarize:
+                await outbox.enqueue(connection, OutboxKind.SUMMARIZE_DOCUMENT, document.id)
     except asyncpg.ForeignKeyViolationError as exc:
         if exc.constraint_name == CLIENT_FOREIGN_KEY:
             raise ClientNotFoundError from exc

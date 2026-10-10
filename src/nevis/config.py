@@ -1,4 +1,6 @@
-from pydantic import HttpUrl, PostgresDsn, SecretStr, field_validator
+from typing import Self
+
+from pydantic import HttpUrl, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ASYNCPG_SCHEMES = frozenset({"postgresql", "postgres"})
@@ -20,6 +22,23 @@ class Settings(SearchSettings):
     """Runtime configuration of the app, read from ``NEVIS_*`` environment variables."""
 
     database_url: PostgresDsn
+    # A locally running model with an OpenAI-compatible API (e.g. Ollama's
+    # http://localhost:11434/v1) for document summaries. Unset: summaries stay empty.
+    summary_api_url: HttpUrl | None = None
+    summary_model: str | None = None
+
+    @field_validator("summary_api_url", "summary_model", mode="before")
+    @classmethod
+    def _empty_means_unset(cls, value: object) -> object:
+        # docker-compose passes variables that aren't set in .env through as empty strings.
+        return None if value == "" else value
+
+    @model_validator(mode="after")
+    def _require_both_summary_settings(self) -> Self:
+        if (self.summary_api_url is None) != (self.summary_model is None):
+            msg = "set both NEVIS_SUMMARY_API_URL and NEVIS_SUMMARY_MODEL, or neither"
+            raise ValueError(msg)
+        return self
 
     @field_validator("database_url")
     @classmethod

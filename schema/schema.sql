@@ -46,7 +46,8 @@ CREATE TABLE outbox (
     failed_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (id),
-    CONSTRAINT outbox_kind_check CHECK (kind IN ('index_client', 'index_document'))
+    CONSTRAINT outbox_kind_check
+        CHECK (kind IN ('index_client', 'index_document', 'summarize_document'))
 );
 
 -- The worker's claim query: pending jobs in order of availability.

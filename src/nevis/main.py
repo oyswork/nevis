@@ -20,6 +20,7 @@ from nevis.search.client import (
     search_unavailable_handler,
 )
 from nevis.search.router import router as search_router
+from nevis.summaries.client import create_summarizer
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -30,14 +31,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         pool = await create_pool(resolved_settings)
         search_client = create_search_client(resolved_settings)
+        summarizer = create_summarizer(resolved_settings)
         app.state.pool = pool
         app.state.search_client = search_client
-        outbox_worker = create_outbox_worker(pool, search_client)
+        app.state.summarizer = summarizer
+        outbox_worker = create_outbox_worker(pool, search_client, summarizer)
         outbox_worker.start()
         try:
             yield
         finally:
             await outbox_worker.stop()
+            if summarizer is not None:
+                await summarizer.aclose()
             await search_client.aclose()
             await pool.close()
 

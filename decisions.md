@@ -88,3 +88,20 @@
 - Rejected:
   - Elasticsearch: stable `wildcard` substring matching, but see above.
   - `pg_trgm` + `pgvector`: one datastore, but relevance features built by hand.
+
+## Summaries: local model only, optional
+
+**Decision.**
+
+- `summary` is filled in by an outbox job calling a locally running model over the
+  OpenAI-compatible chat API (Ollama, LM Studio, llama.cpp, vLLM), set by
+  `NEVIS_SUMMARY_API_URL` + `NEVIS_SUMMARY_MODEL`.
+- Unset: no job, `summary` stays null.
+- No API key setting, so hosted LLM APIs aren't an option by accident.
+
+**Trade-offs.**
+
+- Asynchronous: `POST` returns `summary: null`; read it later with `GET /documents/{id}`.
+- Input is cut to 12k characters to fit small local context windows.
+- A summary is written once, never refreshed.
+- Not verified against a real model in tests: the protocol is tested with a mock transport.
