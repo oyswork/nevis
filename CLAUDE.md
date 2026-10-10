@@ -31,7 +31,9 @@ files) and omymodels generates the row models from it.
 3. `docker compose run --rm migrate` applies the change to the local database.
 
 Gotchas:
-- Write `timestamp with time zone`, not `timestamptz`: omymodels doesn't map the alias.
+- Write `timestamptz`, not `timestamp with time zone`: the generator maps `timestamptz` to
+  `pydantic.AwareDatetime` (naive datetimes are rejected), but the DDL parser reduces the long
+  spelling to plain `timestamp`, which becomes a naive `datetime.datetime`.
 - Postgres extensions (e.g. `vector`) are an Atlas Pro feature. Create them outside Atlas, in
   `docker/initdb/` (used by both stacks), in both the app and `atlas_dev` databases.
 - Atlas connection settings live in `schema/atlas.hcl` (env `compose`), with URLs from

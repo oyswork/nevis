@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1 \
@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 RUN useradd --system --uid 1000 app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv

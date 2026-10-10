@@ -3,7 +3,7 @@ name = "nevis"
 version = "0.1.0"
 description = "Search API across advisor clients and their documents"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.32.0",
     "email-validator>=2.3.0",
@@ -30,7 +30,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 # Generated verbatim by omymodels; tests/test_db_models.py compares it byte for byte.
 extend-exclude = ["src/nevis/db_models.py"]
 
@@ -53,15 +53,16 @@ select = [
 
 [tool.mypy]
 strict = true
-python_version = "3.12"
+python_version = "3.14"
 mypy_path = ["src", "scripts"]
 files = ["src", "tests", "scripts"]
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-# omymodels ships no type information; it's only used by scripts/generate_models.py.
-module = ["omymodels"]
+# omymodels and its table_meta dependency ship no type information; only
+# scripts/generate_models.py imports them.
+module = ["omymodels.*", "table_meta.*"]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]

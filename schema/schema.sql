@@ -1,6 +1,7 @@
 -- Desired database state. Atlas diffs the live database against this file and applies the
 -- difference (`atlas schema apply`); omymodels generates src/nevis/db_models.py from it.
--- Spell timestamps "timestamp with time zone": omymodels doesn't map the "timestamptz" alias.
+-- Spell aware timestamps "timestamptz" (generated as pydantic.AwareDatetime): the DDL parser
+-- reduces "timestamp with time zone" to plain "timestamp", i.e. a naive datetime.
 
 CREATE TABLE clients (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -9,7 +10,7 @@ CREATE TABLE clients (
     email varchar(320) NOT NULL,
     description text,
     social_links text[] NOT NULL DEFAULT '{}',
-    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (id)
 );
 
