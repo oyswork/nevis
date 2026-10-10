@@ -1,5 +1,6 @@
--- Desired database state. Atlas diffs the live database against this file and applies the
--- difference (`atlas schema apply`); omymodels generates src/nevis/db_models.py from it.
+-- Desired database state. Atlas diffs it against the migration history to generate versioned
+-- migrations in schema/migrations/ (`just migration <name>`); omymodels generates
+-- src/nevis/db_models.py from it.
 -- Spell aware timestamps "timestamptz" (generated as pydantic.AwareDatetime): the DDL parser
 -- reduces "timestamp with time zone" to plain "timestamp", i.e. a naive datetime.
 
