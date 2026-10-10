@@ -3,6 +3,8 @@ import asyncpg
 from nevis.clients.schemas import ClientCreate
 from nevis.db import DbPool
 from nevis.db_models import Client
+from nevis.outbox import repository as outbox
+from nevis.outbox.repository import OutboxKind
 
 EMAIL_UNIQUE_INDEX = "uq_clients_email_lower"
 
@@ -18,20 +20,24 @@ class EmailAlreadyExistsError(Exception):
 
 
 async def create_client(pool: DbPool, data: ClientCreate) -> Client:
+    """Insert the client and, in the same transaction, the job that indexes it for search."""
     try:
-        row = await pool.fetchrow(
-            INSERT_CLIENT,
-            data.first_name,
-            data.last_name,
-            data.email,
-            data.description,
-            data.social_links,
-        )
+        async with pool.acquire() as connection, connection.transaction():
+            row = await connection.fetchrow(
+                INSERT_CLIENT,
+                data.first_name,
+                data.last_name,
+                data.email,
+                data.description,
+                data.social_links,
+            )
+            if row is None:  # INSERT ... RETURNING always yields the inserted row
+                msg = "INSERT INTO clients returned no row"
+                raise RuntimeError(msg)
+            client = Client(**row)
+            await outbox.enqueue(connection, OutboxKind.INDEX_CLIENT, client.id)
     except asyncpg.UniqueViolationError as exc:
         if exc.constraint_name == EMAIL_UNIQUE_INDEX:
             raise EmailAlreadyExistsError from exc
         raise
-    if row is None:  # INSERT ... RETURNING always yields the inserted row
-        msg = "INSERT INTO clients returned no row"
-        raise RuntimeError(msg)
-    return Client(**row)
+    return client

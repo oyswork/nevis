@@ -36,6 +36,8 @@ DATABASE_UNAVAILABLE_RESPONSES: dict[int | str, dict[str, Any]] = {
 # A `type` alias is evaluated lazily: asyncpg.Pool is generic only in asyncpg-stubs,
 # and subscripting it at runtime raises TypeError.
 type DbPool = asyncpg.Pool[asyncpg.Record]
+# What `async with pool.acquire()` yields; take it to run statements inside a transaction.
+type DbConnection = asyncpg.pool.PoolConnectionProxy[asyncpg.Record]
 
 
 async def create_pool(settings: Settings) -> DbPool:

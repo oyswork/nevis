@@ -74,7 +74,12 @@ Gotchas:
   generated `nevis.db_models` classes; request/response models live in each feature's `schemas.py`.
 - Inject the pool, not a connection: a connection dependency is acquired before FastAPI rejects
   an invalid body. Use `pool.fetchrow(...)` for single statements, `pool.acquire()` for transactions.
-- Mark tests `unit` (no external services) or `integration` (needs Postgres).
+- Changes that search must see enqueue an outbox job in the same transaction
+  (`nevis.outbox.repository.enqueue`); the background worker runs it. Job handlers must be
+  idempotent (a job can run more than once). Add a kind to `OutboxKind` and to
+  `outbox_kind_check` in `schema.sql` together.
+- Mark tests `unit` (no external services) or `integration` (needs Postgres and Meilisearch).
+  Test apps never run the worker in the background: run jobs with `OutboxWorker.run_once()`.
 - Tests are async (pytest-asyncio, `asyncio_mode = "auto"`, so no `@pytest.mark.asyncio`). Use
   the `client` / `db_client` fixtures: an `httpx2.AsyncClient` over ASGI with the app lifespan
   running. Write `(await client.post(...)).json()`, not `await client.post(...).json()`.

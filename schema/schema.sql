@@ -17,3 +17,23 @@ CREATE TABLE clients (
 
 -- Emails are unique regardless of case: John.Doe@x.com and john.doe@x.com are the same person.
 CREATE UNIQUE INDEX uq_clients_email_lower ON clients (lower(email));
+
+-- Transactional outbox: jobs for the background worker (nevis.outbox), written in the same
+-- transaction as the change they follow. A job is deleted once it succeeds; after too many
+-- attempts it is kept with failed_at set, for inspection.
+CREATE TABLE outbox (
+    id bigint GENERATED ALWAYS AS IDENTITY,
+    kind text NOT NULL,
+    entity_id uuid NOT NULL,
+    attempts integer NOT NULL DEFAULT 0,
+    available_at timestamptz NOT NULL DEFAULT now(),
+    locked_until timestamptz,
+    last_error text,
+    failed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (id),
+    CONSTRAINT outbox_kind_check CHECK (kind IN ('index_client'))
+);
+
+-- The worker's claim query: pending jobs in order of availability.
+CREATE INDEX ix_outbox_pending ON outbox (available_at) WHERE failed_at IS NULL;

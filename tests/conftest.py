@@ -15,7 +15,9 @@ from pydantic import HttpUrl, PostgresDsn, SecretStr
 
 from nevis.config import Settings
 from nevis.main import create_app
-from nevis.search.indexes import CLIENTS_INDEX
+from nevis.outbox.worker import OutboxWorker
+from nevis.search.client import create_search_client
+from nevis.search.indexes import CLIENTS_INDEX, DOCUMENT_CHUNKS_INDEX
 
 # Served by docker-compose.test.yml; integration tests never start infrastructure themselves.
 # The default is the port the test stack publishes on the host; the `tests` container, which
@@ -114,6 +116,21 @@ def fake_pool() -> NonCallableMagicMock:
 
 
 @pytest.fixture
+def fake_connection(fake_pool: NonCallableMagicMock) -> NonCallableMagicMock:
+    """The connection `async with fake_pool.acquire()` yields, for code that runs transactions."""
+    connection: NonCallableMagicMock = create_autospec(asyncpg.Connection, instance=True)
+    fake_pool.acquire.return_value.__aenter__.return_value = connection
+    return connection
+
+
+@pytest.fixture
+def fake_outbox_worker() -> NonCallableMagicMock:
+    """Replaces the app's background worker: tests run jobs explicitly, never in a loop."""
+    outbox_worker: NonCallableMagicMock = create_autospec(OutboxWorker, instance=True)
+    return outbox_worker
+
+
+@pytest.fixture
 def fake_search_client() -> NonCallableMagicMock:
     """The Meilisearch client behind `client`; configure its methods per test."""
     search_client: NonCallableMagicMock = create_autospec(SearchClient, instance=True)
@@ -125,6 +142,7 @@ async def client(
     settings: Settings,
     fake_pool: NonCallableMagicMock,
     fake_search_client: NonCallableMagicMock,
+    fake_outbox_worker: NonCallableMagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncGenerator[AsyncClient]:
     """App client for unit tests: no infrastructure, the lifespan gets the fakes instead."""
@@ -137,6 +155,7 @@ async def client(
 
     monkeypatch.setattr("nevis.main.create_pool", create_fake_pool)
     monkeypatch.setattr("nevis.main.create_search_client", create_fake_search_client)
+    _replace_outbox_worker(monkeypatch, fake_outbox_worker)
     async with _serve(create_app(settings)) as test_client:
         yield test_client
 
@@ -151,10 +170,30 @@ def db_settings() -> Settings:
 
 
 @pytest.fixture
-async def db_client(db_settings: Settings) -> AsyncGenerator[AsyncClient]:
-    await _execute(str(db_settings.database_url), "TRUNCATE clients CASCADE")
+async def db_client(
+    db_settings: Settings, fake_outbox_worker: NonCallableMagicMock, monkeypatch: pytest.MonkeyPatch
+) -> AsyncGenerator[AsyncClient]:
+    """App client on the real test infrastructure, emptied first. Jobs run only when a test
+    runs them."""
+    await _execute(str(db_settings.database_url), "TRUNCATE clients, outbox CASCADE")
+    await _empty_search_indexes(db_settings)
+    _replace_outbox_worker(monkeypatch, fake_outbox_worker)
     async with _serve(create_app(db_settings)) as test_client:
         yield test_client
+
+
+def _replace_outbox_worker(monkeypatch: pytest.MonkeyPatch, worker: NonCallableMagicMock) -> None:
+    def create_fake_outbox_worker(*_: object) -> NonCallableMagicMock:
+        return worker
+
+    monkeypatch.setattr("nevis.main.create_outbox_worker", create_fake_outbox_worker)
+
+
+async def _empty_search_indexes(settings: Settings) -> None:
+    async with create_search_client(settings) as search_client:
+        for uid in (CLIENTS_INDEX, DOCUMENT_CHUNKS_INDEX):
+            task = await search_client.index(uid).delete_all_documents()
+            await search_client.wait_for_task(task.task_uid, raise_for_status=True)
 
 
 async def _execute(url: str, statement: str) -> None:

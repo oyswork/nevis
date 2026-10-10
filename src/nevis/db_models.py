@@ -13,3 +13,16 @@ class Client(BaseModel):
     description: str | None
     social_links: list[str]
     created_at: AwareDatetime
+
+
+class Outbox(BaseModel):
+
+    id: int
+    kind: str
+    entity_id: UUID
+    attempts: int
+    available_at: AwareDatetime
+    locked_until: AwareDatetime | None
+    last_error: str | None
+    failed_at: AwareDatetime | None
+    created_at: AwareDatetime

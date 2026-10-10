@@ -12,6 +12,7 @@ from nevis.db import (
     database_timeout_handler,
     database_unavailable_handler,
 )
+from nevis.outbox.handlers import create_outbox_worker
 from nevis.search.client import (
     SEARCH_UNAVAILABLE_ERRORS,
     create_search_client,
@@ -29,9 +30,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         search_client = create_search_client(resolved_settings)
         app.state.pool = pool
         app.state.search_client = search_client
+        outbox_worker = create_outbox_worker(pool, search_client)
+        outbox_worker.start()
         try:
             yield
         finally:
+            await outbox_worker.stop()
             await search_client.aclose()
             await pool.close()
 
