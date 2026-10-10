@@ -44,3 +44,38 @@
 - Forgetting to run `migrate diff` after editing `schema.sql` leaves the migrations behind the
   file, and nothing checks for it automatically yet. Applied migrations are immutable: fixes go
   in a new migration, not an edit.
+
+## Search: Meilisearch, with Postgres as the source of truth
+
+**Decision.**
+
+- Meilisearch indexes clients and document chunks. The index is derived from Postgres and can
+  be rebuilt from it (`just reindex`).
+- Writes reach the index through a transactional outbox: the row and its outbox entry commit
+  together, and a background worker indexes them with retries. Search is eventually consistent.
+- Documents: hybrid search with Meilisearch's built-in Hugging Face embedder.
+- Clients: keyword search merged, in one federated multi-search, with the experimental
+  `CONTAINS` filter (`containsFilter`) for substring matches.
+
+**Why.**
+
+- Smaller, faster container than Elasticsearch (9.5.5 idles at ~1.4 GB with a 1 GB heap).
+- Easier setup: a single binary, settings over HTTP, no mappings or analyzers to tune.
+- Built-in embedder: no model or embedding code in the app. Elasticsearch's free license
+  refuses inference and the RRF/linear retrievers, so both would be app-side.
+- Morbid curiosity: the author wanted to try Meilisearch, and a test task is a good place to.
+
+**Trade-offs.**
+
+- No infix matching in regular search: whole words, a prefix on the last word, or typos.
+  `wealth` doesn't find `neviswealth`. `CONTAINS` covers it, but:
+  - it's experimental and may change between versions, so the image is pinned;
+  - it scans: ~13 ms across 4 fields at 100k clients;
+  - its hits score a flat 1.0, so they are weighted below keyword hits.
+- A second datastore: an outbox, a worker and a reindex path to maintain. New records are
+  briefly unsearchable.
+- Typo tolerance returns low-scoring noise, so results need a ranking-score threshold.
+- The first index setup downloads the embedding model (cached in a volume afterwards).
+- Rejected:
+  - Elasticsearch: stable `wildcard` substring matching, but see above.
+  - `pg_trgm` + `pgvector`: one datastore, but relevance features built by hand.
