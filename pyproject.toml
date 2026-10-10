@@ -1,0 +1,78 @@
+[project]
+name = "nevis"
+version = "0.1.0"
+description = "Search API across advisor clients and their documents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg>=0.32.0",
+    "email-validator>=2.3.0",
+    "fastapi>=0.142.4",
+    "pydantic-settings>=2.15.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.2,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "asyncpg-stubs>=0.32.0",
+    "httpx2>=2.13.1",
+    "mypy>=2.4.0",
+    "omymodels>=1.0.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Generated verbatim by omymodels; tests/test_db_models.py compares it byte for byte.
+extend-exclude = ["src/nevis/db_models.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # isort
+    "B",            # bugbear
+    "UP",           # pyupgrade
+    "N",            # pep8-naming
+    "SIM",          # simplify
+    "ANN",          # annotations
+    "S",            # bandit
+    "T20",          # no print
+    "RUF",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert is how pytest works
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+mypy_path = ["src", "scripts"]
+files = ["src", "tests", "scripts"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# omymodels ships no type information; it's only used by scripts/generate_models.py.
+module = ["omymodels"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["scripts"]  # tests import generate_models
+addopts = "-ra --strict-markers --cov=nevis --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "unit: fast tests with no external services",
+    "integration: tests that need Postgres",
+]

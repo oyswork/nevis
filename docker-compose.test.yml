@@ -1,0 +1,30 @@
+# Integration-test infrastructure, layered over docker-compose.yml. Start it before `pytest`:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --wait migrate
+#
+# A separate project, port and database with in-memory storage, so it can run next to the dev
+# stack and never touches its data. Tear down with the same -f flags and `down`.
+name: nevis-test
+
+services:
+  db:
+    # Fixed values (not ${...} from .env): tests/conftest.py hardcodes this URL.
+    environment:
+      POSTGRES_USER: nevis
+      POSTGRES_PASSWORD: nevis
+      POSTGRES_DB: nevis_test
+    ports: !override
+      - "127.0.0.1:55432:5432"
+    volumes: !override
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  migrate:
+    environment:
+      ATLAS_URL: postgresql://nevis:nevis@db:5432/nevis_test?sslmode=disable&search_path=public
+      ATLAS_DEV_URL: postgresql://nevis:nevis@db:5432/atlas_dev?sslmode=disable&search_path=public
+
+  # Tests run the app in-process; keep the api (and its port 8000) out of the test stack.
+  api:
+    profiles: [app]
