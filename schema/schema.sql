@@ -18,6 +18,20 @@ CREATE TABLE clients (
 -- Emails are unique regardless of case: John.Doe@x.com and john.doe@x.com are the same person.
 CREATE UNIQUE INDEX uq_clients_email_lower ON clients (lower(email));
 
+CREATE TABLE documents (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    client_id uuid NOT NULL,
+    title varchar(200) NOT NULL,
+    content text NOT NULL,
+    -- Filled in later, and only if a local summarization model is configured.
+    summary text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_documents_client FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE CASCADE
+);
+
+CREATE INDEX ix_documents_client_id ON documents (client_id);
+
 -- Transactional outbox: jobs for the background worker (nevis.outbox), written in the same
 -- transaction as the change they follow. A job is deleted once it succeeds; after too many
 -- attempts it is kept with failed_at set, for inspection.
@@ -32,7 +46,7 @@ CREATE TABLE outbox (
     failed_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (id),
-    CONSTRAINT outbox_kind_check CHECK (kind IN ('index_client'))
+    CONSTRAINT outbox_kind_check CHECK (kind IN ('index_client', 'index_document'))
 );
 
 -- The worker's claim query: pending jobs in order of availability.

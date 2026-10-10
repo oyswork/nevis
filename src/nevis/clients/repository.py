@@ -1,3 +1,5 @@
+import uuid
+
 import asyncpg
 
 from nevis.clients.schemas import ClientCreate
@@ -13,6 +15,8 @@ INSERT_CLIENT = """
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
 """
+
+SELECT_CLIENT = "SELECT * FROM clients WHERE id = $1"
 
 
 class EmailAlreadyExistsError(Exception):
@@ -41,3 +45,8 @@ async def create_client(pool: DbPool, data: ClientCreate) -> Client:
             raise EmailAlreadyExistsError from exc
         raise
     return client
+
+
+async def get_client(pool: DbPool, client_id: uuid.UUID) -> Client | None:
+    row = await pool.fetchrow(SELECT_CLIENT, client_id)
+    return None if row is None else Client(**row)

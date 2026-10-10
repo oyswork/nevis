@@ -12,6 +12,7 @@ from nevis.db import (
     database_timeout_handler,
     database_unavailable_handler,
 )
+from nevis.documents.router import router as documents_router
 from nevis.outbox.handlers import create_outbox_worker
 from nevis.search.client import (
     SEARCH_UNAVAILABLE_ERRORS,
@@ -47,4 +48,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.add_exception_handler(error, search_unavailable_handler)
     app.include_router(health_router)
     app.include_router(clients_router)
+    app.include_router(documents_router)
     return app

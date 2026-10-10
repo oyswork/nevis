@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, HTTPException, status
 
 from nevis.clients import repository
@@ -7,6 +9,7 @@ from nevis.db import DATABASE_UNAVAILABLE_RESPONSES, PoolDep
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 DUPLICATE_EMAIL_DETAIL = "A client with this email already exists"
+CLIENT_NOT_FOUND_DETAIL = "Client not found"
 
 
 @router.post(
@@ -22,4 +25,18 @@ async def create_client(payload: ClientCreate, pool: PoolDep) -> ClientRead:
         client = await repository.create_client(pool, payload)
     except repository.EmailAlreadyExistsError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, DUPLICATE_EMAIL_DETAIL) from exc
+    return ClientRead.model_validate(client)
+
+
+@router.get(
+    "/{client_id}",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": CLIENT_NOT_FOUND_DETAIL},
+        **DATABASE_UNAVAILABLE_RESPONSES,
+    },
+)
+async def get_client(client_id: uuid.UUID, pool: PoolDep) -> ClientRead:
+    client = await repository.get_client(pool, client_id)
+    if client is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, CLIENT_NOT_FOUND_DETAIL)
     return ClientRead.model_validate(client)

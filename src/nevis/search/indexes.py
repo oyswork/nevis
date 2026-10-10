@@ -27,6 +27,8 @@ INDEX_SETTINGS: dict[str, MeilisearchSettings] = {
     ),
     DOCUMENT_CHUNKS_INDEX: MeilisearchSettings(
         searchable_attributes=["title", "text"],
+        # For deleting a document's chunks, or the ones past its last chunk.
+        filterable_attributes=["document_id", "ordinal"],
         # A document matches once, through its best chunk.
         distinct_attribute="document_id",
         embedders={

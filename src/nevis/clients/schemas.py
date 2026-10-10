@@ -12,13 +12,12 @@ from pydantic import (
     field_validator,
 )
 
+from nevis.validation import NO_NUL_PATTERN
+
 NAME_MAX_LENGTH = 100  # varchar(100) in schema/schema.sql
 DESCRIPTION_MAX_LENGTH = 10_000
 SOCIAL_LINK_MAX_LENGTH = 2048
 SOCIAL_LINKS_MAX_COUNT = 20
-
-# Postgres text columns can't store NUL; without this the INSERT fails with a 500, not a 422.
-NO_NUL_PATTERN = r"^[^\x00]*$"
 
 
 def _require_http_url(value: str) -> str:

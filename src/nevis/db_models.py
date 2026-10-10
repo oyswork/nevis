@@ -15,6 +15,16 @@ class Client(BaseModel):
     created_at: AwareDatetime
 
 
+class Document(BaseModel):
+
+    id: UUID
+    client_id: UUID
+    title: str = Field(max_length=200)
+    content: str
+    summary: str | None
+    created_at: AwareDatetime
+
+
 class Outbox(BaseModel):
 
     id: int
