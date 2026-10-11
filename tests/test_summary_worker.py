@@ -20,7 +20,7 @@ from nevis.db import DbPool, create_pool
 from nevis.db_models import Document
 from nevis.documents.schemas import DocumentRead
 from nevis.summaries import repository, worker
-from nevis.summaries.client import REQUEST_TIMEOUT_SECONDS, LocalSummarizer
+from nevis.summaries.client import REQUEST_TIMEOUT_SECONDS, Summarizer
 from nevis.summaries.worker import SummaryWorker, backoff
 
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
@@ -117,7 +117,7 @@ async def lock_remaining(pool: DbPool, document_id: uuid.UUID) -> datetime.timed
 
 
 def fake_summarizer(summary: str = "A summary.") -> NonCallableMagicMock:
-    summarizer: NonCallableMagicMock = create_autospec(LocalSummarizer, instance=True)
+    summarizer: NonCallableMagicMock = create_autospec(Summarizer, instance=True)
     summarizer.summarize.return_value = summary
     return summarizer
 

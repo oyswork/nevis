@@ -23,7 +23,7 @@ from nevis.config import WorkerSettings
 from nevis.db import DbPool, create_pool
 from nevis.db_models import Document
 from nevis.summaries import repository
-from nevis.summaries.client import LocalSummarizer, create_summarizer
+from nevis.summaries.client import Summarizer, create_summarizer
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def backoff(attempts: int) -> datetime.timedelta:
 class SummaryWorker:
     """Without a summarizer (no model configured) it claims nothing and only idles."""
 
-    def __init__(self, pool: DbPool, summarizer: LocalSummarizer | None, database_url: str) -> None:
+    def __init__(self, pool: DbPool, summarizer: Summarizer | None, database_url: str) -> None:
         self._pool = pool
         self._summarizer = summarizer
         self._database_url = database_url
@@ -105,7 +105,7 @@ class SummaryWorker:
             count += 1
         return count
 
-    async def _summarize(self, summarizer: LocalSummarizer, document: Document) -> None:
+    async def _summarize(self, summarizer: Summarizer, document: Document) -> None:
         try:
             async with asyncio.timeout(SUMMARY_DEADLINE_SECONDS):
                 summary = await summarizer.summarize(document.title, document.content)

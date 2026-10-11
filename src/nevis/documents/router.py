@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from nevis.clients.router import CLIENT_NOT_FOUND_DETAIL
+from nevis.api.errors import CLIENT_NOT_FOUND_DETAIL, DOCUMENT_NOT_FOUND_DETAIL, error_response
 from nevis.db import DATABASE_UNAVAILABLE_RESPONSES, PoolDep
 from nevis.documents import repository
 from nevis.documents.schemas import DocumentCreate, DocumentRead
@@ -10,14 +10,12 @@ from nevis.embeddings import EmbedderDep
 
 router = APIRouter(tags=["documents"])
 
-DOCUMENT_NOT_FOUND_DETAIL = "Document not found"
-
 
 @router.post(
     "/clients/{client_id}/documents",
     status_code=status.HTTP_201_CREATED,
     responses={
-        status.HTTP_404_NOT_FOUND: {"description": CLIENT_NOT_FOUND_DETAIL},
+        status.HTTP_404_NOT_FOUND: error_response(CLIENT_NOT_FOUND_DETAIL),
         **DATABASE_UNAVAILABLE_RESPONSES,
     },
 )
@@ -42,7 +40,7 @@ async def create_document(
 @router.get(
     "/documents/{document_id}",
     responses={
-        status.HTTP_404_NOT_FOUND: {"description": DOCUMENT_NOT_FOUND_DETAIL},
+        status.HTTP_404_NOT_FOUND: error_response(DOCUMENT_NOT_FOUND_DETAIL),
         **DATABASE_UNAVAILABLE_RESPONSES,
     },
 )

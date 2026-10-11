@@ -75,6 +75,7 @@ class ClientRead(BaseModel):
     id: uuid.UUID
     first_name: str
     last_name: str
-    email: str
+    # Documented as format: email like the spec's Client, without re-validating stored rows.
+    email: Annotated[str, Field(json_schema_extra={"format": "email"})]
     description: str | None
     social_links: list[str]

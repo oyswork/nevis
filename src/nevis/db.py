@@ -6,6 +6,7 @@ from fastapi import Depends, Request, status
 from fastapi.responses import JSONResponse
 from pgvector import Vector
 
+from nevis.api.errors import error_response
 from nevis.config import DatabaseSettings
 
 logger = logging.getLogger(__name__)
@@ -45,9 +46,9 @@ DATABASE_UNAVAILABLE_ERRORS: tuple[type[Exception], ...] = (
 # OpenAPI `responses` entry for routes that touch the database. Any: matches the type of
 # FastAPI's `responses` parameter, whose values are free-form OpenAPI objects.
 DATABASE_UNAVAILABLE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    status.HTTP_503_SERVICE_UNAVAILABLE: {
-        "description": f"{DATABASE_UNAVAILABLE_DETAIL} or {DATABASE_TIMEOUT_DETAIL.lower()}"
-    }
+    status.HTTP_503_SERVICE_UNAVAILABLE: error_response(
+        f"{DATABASE_UNAVAILABLE_DETAIL} or {DATABASE_TIMEOUT_DETAIL.lower()}"
+    )
 }
 
 # A `type` alias is evaluated lazily: asyncpg.Pool is generic only in asyncpg-stubs,

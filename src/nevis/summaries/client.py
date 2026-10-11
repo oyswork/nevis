@@ -4,6 +4,8 @@ Ollama, LM Studio, llama.cpp and vLLM all serve it. There is deliberately no API
 summaries come only from a local model (decisions.md).
 """
 
+from typing import Protocol
+
 from httpx2 import AsyncClient
 from pydantic import BaseModel
 
@@ -32,7 +34,19 @@ class _Completion(BaseModel):
     choices: list[_Choice]
 
 
+class Summarizer(Protocol):
+    """What the summary worker needs from a summarization backend."""
+
+    async def summarize(self, title: str, content: str) -> str:
+        """A short summary of the document; raises if the backend gives none."""
+        ...
+
+    async def aclose(self) -> None: ...
+
+
 class LocalSummarizer:
+    """A Summarizer backed by a local model's OpenAI-compatible chat API."""
+
     def __init__(self, http_client: AsyncClient, model: str) -> None:
         self._http_client = http_client
         self._model = model
