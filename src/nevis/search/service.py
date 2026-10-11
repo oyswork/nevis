@@ -16,6 +16,7 @@ from meilisearch_python_sdk.models.search import Hybrid, SearchParams
 from nevis.clients.schemas import ClientRead
 from nevis.db import DbPool
 from nevis.db_models import Client, Document
+from nevis.documents.columns import DOCUMENT_COLUMNS
 from nevis.documents.schemas import DocumentRead
 from nevis.search.indexes import (
     CLIENT_TEXT_FIELDS,
@@ -35,7 +36,7 @@ SUBSTRING_CLIENTS = "substring_clients"
 DOCUMENTS = "documents"
 
 SELECT_CLIENTS = "SELECT * FROM clients WHERE id = ANY($1::uuid[])"
-SELECT_DOCUMENTS = "SELECT * FROM documents WHERE id = ANY($1::uuid[])"
+SELECT_DOCUMENTS = f"SELECT {DOCUMENT_COLUMNS} FROM documents WHERE id = ANY($1::uuid[])"  # noqa: S608 - constant column list
 
 
 def filter_string(value: str) -> str:

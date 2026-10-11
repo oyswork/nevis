@@ -1,5 +1,6 @@
-h1:RG4UgjSp9tk8iEwTobQ5+z4e3fUF/e1BmSygumVabGs=
+h1:WrTjhG+Aaiz5jb3hb4evgzTBjneJLU5/MWMnNBerzX4=
 20261010102627_initial.sql h1:qv+1HTclddRMCW7XtQuEzbNwImZCBD3tTDRrDSHGP6Q=
 20261010135740_add_outbox.sql h1:3D+y6xgz2tVGiy1OFUkAEM2yGnY1rprmoivp9QOUVLE=
 20261010140358_add_documents.sql h1:1qpV8YGW6nHWhbky2thDrKyqpPogh9BOJ1vyYQxK2ng=
 20261010141546_add_summarize_job.sql h1:0r5eG/bmf+//cQT7+rz6j6sI8T8S3nJ2pZ8pMglT7nk=
+20261011041304_add_postgres_search.sql h1:UZsGzv/OT2FLrGl28cj7U8b+JhQ8O8L0xSJ9eLmQv0k=

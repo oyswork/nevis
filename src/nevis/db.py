@@ -4,6 +4,7 @@ from typing import Annotated, Any
 import asyncpg
 from fastapi import Depends, Request, status
 from fastapi.responses import JSONResponse
+from pgvector import Vector
 
 from nevis.config import Settings
 
@@ -40,6 +41,29 @@ type DbPool = asyncpg.Pool[asyncpg.Record]
 type DbConnection = asyncpg.pool.PoolConnectionProxy[asyncpg.Record]
 
 
+async def register_vector_codec(connection: asyncpg.Connection[asyncpg.Record]) -> None:
+    """Read and write pgvector's `vector` as a plain list[float].
+
+    pgvector.asyncpg.register_vector decodes to `Vector` objects, which the generated row
+    models (list[float]) reject. Fails with a RuntimeError if the
+    extension is missing (docker/initdb/02-extensions.sql).
+    """
+    try:
+        await connection.set_type_codec(
+            "vector",
+            schema="public",
+            encoder=lambda value: Vector(value).to_binary(),
+            decoder=lambda data: Vector.from_binary(data).to_list(),
+            format="binary",
+        )
+    except ValueError as exc:  # asyncpg: "unknown type: public.vector"
+        msg = (
+            "The 'vector' extension is missing from the database: create it with "
+            "docker/initdb/02-extensions.sql (it has the command for an existing database)"
+        )
+        raise RuntimeError(msg) from exc
+
+
 async def create_pool(settings: Settings) -> DbPool:
     # min_size=0 opens connections on first use, so the app can start before the database is up.
     return await asyncpg.create_pool(
@@ -48,6 +72,7 @@ async def create_pool(settings: Settings) -> DbPool:
         max_size=POOL_MAX_SIZE,
         timeout=CONNECT_TIMEOUT_SECONDS,
         command_timeout=COMMAND_TIMEOUT_SECONDS,
+        init=register_vector_codec,
     )
 
 

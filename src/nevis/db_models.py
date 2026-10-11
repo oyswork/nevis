@@ -12,6 +12,7 @@ class Client(BaseModel):
     email: str = Field(max_length=320)
     description: str | None
     social_links: list[str]
+    search_text: str
     created_at: AwareDatetime
 
 
@@ -23,6 +24,14 @@ class Document(BaseModel):
     content: str
     summary: str | None
     created_at: AwareDatetime
+
+
+class DocumentChunk(BaseModel):
+
+    document_id: UUID
+    ordinal: int
+    text: str
+    embedding: list[float]
 
 
 class Outbox(BaseModel):

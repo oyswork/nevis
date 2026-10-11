@@ -5,7 +5,7 @@ from httpx2 import AsyncClient
 from meilisearch_python_sdk import AsyncClient as SearchClient
 
 from nevis.config import Settings
-from nevis.db import DbPool, create_pool
+from nevis.db import DbPool
 from nevis.outbox.handlers import create_outbox_worker
 from nevis.search.client import create_search_client
 from nevis.search.indexes import CLIENTS_INDEX, DOCUMENT_CHUNKS_INDEX
@@ -14,15 +14,6 @@ from nevis.search.reindex import reindex
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
 DOCUMENT = {"title": "Utility bill", "content": "Electricity bill from Vattenfall."}
 ORPHAN = {"id": "orphan", "first_name": "Gone", "last_name": "Away", "email": "gone@example.com"}
-
-
-@pytest.fixture
-async def db_pool(db_settings: Settings) -> AsyncGenerator[DbPool]:
-    pool = await create_pool(db_settings)
-    try:
-        yield pool
-    finally:
-        await pool.close()
 
 
 @pytest.fixture

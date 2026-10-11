@@ -58,6 +58,7 @@ def test_generated_client_rejects_naive_created_at() -> None:
         "email": "john.doe@neviswealth.com",
         "description": None,
         "social_links": [],
+        "search_text": "john doe john.doe@neviswealth.com",
     }
 
     Client.model_validate({**row, "created_at": datetime.now(UTC)})

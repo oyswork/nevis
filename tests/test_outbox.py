@@ -9,7 +9,7 @@ from httpx2 import AsyncClient
 from meilisearch_python_sdk import AsyncClient as SearchClient
 
 from nevis.config import Settings
-from nevis.db import DbPool, create_pool
+from nevis.db import DbPool
 from nevis.outbox import repository, worker
 from nevis.outbox.handlers import create_outbox_worker
 from nevis.outbox.repository import OutboxKind
@@ -101,15 +101,6 @@ async def test_app_starts_the_outbox_worker(
     client: AsyncClient, fake_outbox_worker: NonCallableMagicMock
 ) -> None:
     fake_outbox_worker.start.assert_called_once_with()
-
-
-@pytest.fixture
-async def db_pool(db_settings: Settings) -> AsyncGenerator[DbPool]:
-    pool = await create_pool(db_settings)
-    try:
-        yield pool
-    finally:
-        await pool.close()
 
 
 @pytest.fixture

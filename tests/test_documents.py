@@ -8,7 +8,7 @@ from httpx2 import AsyncClient
 from meilisearch_python_sdk import AsyncClient as SearchClient
 
 from nevis.config import Settings
-from nevis.db import DbPool, create_pool
+from nevis.db import DbPool
 from nevis.outbox.handlers import create_outbox_worker
 from nevis.search.chunking import CHUNK_TEXT_MAX_BYTES
 from nevis.search.client import create_search_client
@@ -95,15 +95,6 @@ async def test_create_document_returns_503_when_database_is_unreachable(
     response = await client.post(f"/clients/{SOME_ID}/documents", json=DOCUMENT)
 
     assert response.status_code == 503
-
-
-@pytest.fixture
-async def db_pool(db_settings: Settings) -> AsyncGenerator[DbPool]:
-    pool = await create_pool(db_settings)
-    try:
-        yield pool
-    finally:
-        await pool.close()
 
 
 @pytest.fixture

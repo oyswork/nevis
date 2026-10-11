@@ -6,11 +6,12 @@ from meilisearch_python_sdk import AsyncClient
 
 from nevis.db import DbPool
 from nevis.db_models import Client, Document
+from nevis.documents.columns import DOCUMENT_COLUMNS
 from nevis.search.chunking import chunk_text
 from nevis.search.indexes import CLIENT_TEXT_FIELDS, CLIENTS_INDEX, DOCUMENT_CHUNKS_INDEX
 
 SELECT_CLIENT = "SELECT * FROM clients WHERE id = $1"
-SELECT_DOCUMENT = "SELECT * FROM documents WHERE id = $1"
+SELECT_DOCUMENT = f"SELECT {DOCUMENT_COLUMNS} FROM documents WHERE id = $1"  # noqa: S608 - constant column list
 # Indexing one record is quick; this bounds a job when Meilisearch's task queue is backed up.
 INDEX_TASK_TIMEOUT_MS = 60_000
 

@@ -7,12 +7,13 @@ from nevis.db import DbPool
 from nevis.db_models import Client
 from nevis.outbox import repository as outbox
 from nevis.outbox.repository import OutboxKind
+from nevis.text import client_search_text
 
 EMAIL_UNIQUE_INDEX = "uq_clients_email_lower"
 
 INSERT_CLIENT = """
-    INSERT INTO clients (first_name, last_name, email, description, social_links)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO clients (first_name, last_name, email, description, social_links, search_text)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *
 """
 
@@ -34,6 +35,12 @@ async def create_client(pool: DbPool, data: ClientCreate) -> Client:
                 data.email,
                 data.description,
                 data.social_links,
+                client_search_text(
+                    first_name=data.first_name,
+                    last_name=data.last_name,
+                    email=data.email,
+                    description=data.description,
+                ),
             )
             if row is None:  # INSERT ... RETURNING always yields the inserted row
                 msg = "INSERT INTO clients returned no row"

@@ -15,6 +15,7 @@ from meilisearch_python_sdk.errors import MeilisearchApiError, MeilisearchCommun
 from pydantic import HttpUrl, PostgresDsn, SecretStr
 
 from nevis.config import EmbeddingSettings, Settings
+from nevis.db import DbPool, create_pool
 from nevis.embeddings import Embedder, create_embedder
 from nevis.main import create_app
 from nevis.outbox.worker import OutboxWorker
@@ -188,6 +189,16 @@ def db_settings() -> Settings:
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def real_embedder() -> Embedder:
     return await create_embedder(EmbeddingSettings())
+
+
+@pytest.fixture
+async def db_pool(db_settings: Settings) -> AsyncGenerator[DbPool]:
+    """A pool on the test database, with the app's connection setup (the vector codec)."""
+    pool = await create_pool(db_settings)
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest.fixture

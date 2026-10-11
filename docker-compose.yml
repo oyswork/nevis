@@ -143,5 +143,22 @@ services:
       meilisearch:
         condition: service_healthy
 
+  # Tool, not part of the stack: embeds documents that have no chunks yet (all with `--all`) and
+  # recomputes every client's search_text (nevis.search.reembed).  `just reembed`
+  reembed:
+    build:
+      context: .
+      target: dev
+    profiles: [tools]
+    command: ["python", "-m", "nevis.search.reembed"]
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      <<: *search-env
+      NEVIS_DATABASE_URL: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   huggingface-cache:

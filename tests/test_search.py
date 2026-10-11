@@ -8,7 +8,7 @@ from meilisearch_python_sdk.errors import MeilisearchCommunicationError
 from pydantic import TypeAdapter
 
 from nevis.config import Settings
-from nevis.db import DbPool, create_pool
+from nevis.db import DbPool
 from nevis.outbox.handlers import create_outbox_worker
 from nevis.search.client import create_search_client
 from nevis.search.schemas import ClientHit, DocumentHit, SearchHit
@@ -92,15 +92,6 @@ def test_filter_string_quotes_and_escapes(value: str, expected: str) -> None:
 @pytest.mark.unit
 def test_merge_ids_keeps_first_occurrence_order_and_limit() -> None:
     assert merge_ids([["a", "b"], ["b", "c", "d"]], limit=3) == ["a", "b", "c"]
-
-
-@pytest.fixture
-async def db_pool(db_settings: Settings) -> AsyncGenerator[DbPool]:
-    pool = await create_pool(db_settings)
-    try:
-        yield pool
-    finally:
-        await pool.close()
 
 
 @pytest.fixture

@@ -1,6 +1,5 @@
 import json
 import uuid
-from collections.abc import AsyncGenerator
 from unittest.mock import NonCallableMagicMock, create_autospec
 
 import httpx2
@@ -9,7 +8,7 @@ from httpx2 import AsyncClient
 from pydantic import HttpUrl, PostgresDsn, SecretStr, ValidationError
 
 from nevis.config import Settings
-from nevis.db import DbPool, create_pool
+from nevis.db import DbPool
 from nevis.summaries.client import CONTENT_MAX_CHARS, LocalSummarizer, create_summarizer
 from nevis.summaries.jobs import summarize_document
 
@@ -93,15 +92,6 @@ def test_summary_settings_need_both_url_and_model(
 ) -> None:
     with pytest.raises(ValidationError, match="NEVIS_SUMMARY_API_URL and NEVIS_SUMMARY_MODEL"):
         Settings.model_validate(settings.model_dump() | update)
-
-
-@pytest.fixture
-async def db_pool(db_settings: Settings) -> AsyncGenerator[DbPool]:
-    pool = await create_pool(db_settings)
-    try:
-        yield pool
-    finally:
-        await pool.close()
 
 
 async def summarize_jobs(pool: DbPool) -> int:

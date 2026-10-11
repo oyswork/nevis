@@ -11,19 +11,23 @@ from pathlib import Path
 from omymodels import BaseGenerator, create_models, register_generator
 from omymodels.models.pydantic_v2 import templates as pydantic_v2_templates
 from omymodels.models.pydantic_v2.core import ModelGenerator as PydanticV2Generator
-from table_meta.model import Column
+from table_meta.model import Column, TableMeta
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = ROOT / "schema" / "schema.sql"
 MODELS_PATH = ROOT / "src" / "nevis" / "db_models.py"
 
 MODELS_TYPE = "pydantic_v2_aware"
-# What the built-in generator emits for timestamptz columns (it has no mapping, so it passes
-# the SQL type through) -> the type we want instead. The DDL parser reduces
-# "timestamp with time zone" to plain "timestamp", so only the timestamptz spelling gets here.
-AWARE_DATETIME_TYPES = {
+# What the built-in generator emits for types it has no mapping for (it passes the SQL type
+# through) -> the type we want instead.
+# - timestamptz: the DDL parser reduces "timestamp with time zone" to plain "timestamp", so only
+#   the timestamptz spelling gets here.
+# - vector (pgvector): otherwise emitted as an undefined name. The pool's codec (nevis.db)
+#   decodes it to list[float].
+TYPE_OVERRIDES = {
     "timestamptz": "AwareDatetime",
     "list[timestamptz]": "list[AwareDatetime]",
+    "vector": "list[float]",
 }
 
 HEADER = """\
@@ -42,17 +46,32 @@ HEADER = """\
 # evaluates annotations lazily (PEP 649).
 # omymodels ships no type information, so both bases are Any to mypy.
 class AwareDatetimeGenerator(PydanticV2Generator, BaseGenerator):  # type: ignore[misc]
-    """The pydantic_v2 generator, but timestamptz columns become ``pydantic.AwareDatetime``."""
+    """The pydantic_v2 generator, with TYPE_OVERRIDES applied to the types it passes through."""
 
     def __init__(self) -> None:
         super().__init__()
         self.aware_datetime_import = False
 
+    def generate_model(self, table: TableMeta, *args: object, **kwargs: object) -> str:
+        # Stored generated columns (documents.tsv) are search plumbing the app never reads, and
+        # shipping a whole tsvector with every row would be wasteful: leave them out of the models.
+        # Queries then select explicit column lists instead of `*`. Identity columns
+        # (GENERATED ALWAYS AS IDENTITY) are also "generated" to the parser, but are real data.
+        stored = [
+            column
+            for column in table.columns
+            if not column.generated_as or column.generated_as.upper() == "IDENTITY"
+        ]
+        return str(
+            super().generate_model(table.model_copy(update={"columns": stored}), *args, **kwargs)
+        )
+
     def get_not_custom_type(self, column: Column) -> str:
         _type = str(super().get_not_custom_type(column))
-        if _type in AWARE_DATETIME_TYPES:
-            self.aware_datetime_import = True
-            return AWARE_DATETIME_TYPES[_type]
+        if _type in TYPE_OVERRIDES:
+            replacement = TYPE_OVERRIDES[_type]
+            self.aware_datetime_import |= "AwareDatetime" in replacement
+            return replacement
         return _type
 
     def create_header(self, *args: object, **kwargs: object) -> str:

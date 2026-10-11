@@ -2,9 +2,10 @@ import uuid
 
 from nevis.db import DbPool
 from nevis.db_models import Document
+from nevis.documents.columns import DOCUMENT_COLUMNS
 from nevis.summaries.client import LocalSummarizer
 
-SELECT_DOCUMENT = "SELECT * FROM documents WHERE id = $1"
+SELECT_DOCUMENT = f"SELECT {DOCUMENT_COLUMNS} FROM documents WHERE id = $1"  # noqa: S608 - constant column list
 # Never overwrites: a summary, once written, is the summary.
 SET_SUMMARY = "UPDATE documents SET summary = $2 WHERE id = $1 AND summary IS NULL"
 

@@ -88,6 +88,11 @@ search-setup:
 reindex:
     {{ compose }} run --rm reindex
 
+# Embed documents that have no chunks yet (--all: every document) and refresh clients' search_text
+[group("search")]
+reembed *args:
+    {{ compose }} run --rm reembed python -m nevis.search.reembed "$@"
+
 # Generate a migration from the changes to schema/schema.sql and regenerate the models,
 
 # e.g. `just migration add_documents`
