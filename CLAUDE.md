@@ -28,6 +28,11 @@ Everyday commands are `just` recipes (`just` lists them; see `justfile`).
   If integration tests are selected and the test database isn't reachable, named `*_test` and
   migrated, pytest aborts before running anything. `uv run pytest -m unit` needs no
   infrastructure. The URL defaults to localhost:55432 (`NEVIS_TEST_DATABASE_URL`).
+- End to end with real summaries: `just exercise` starts a throwaway stack
+  (`docker-compose.exercise.yml`: api on 127.0.0.1:58000, database in memory) whose worker uses a
+  local OpenAI-compatible model (default `http://127.0.0.1:1234/v1`, first non-embedding model),
+  runs `scripts/exercise.py` against it and removes the stack. `scripts/exercise.py` alone
+  targets any api (`--base-url`, `--user` for the deployed server's Basic auth).
 - Lint, format check, type check (strict): `just check`; fix with
   `uv run ruff check --fix . && uv run ruff format .`
 - Production smoke test: `just prod-smoke` builds the release images and runs

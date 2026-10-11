@@ -71,6 +71,12 @@ test-infra:
 prod-smoke:
     deploy/smoke.sh
 
+# Exercise every endpoint and the summary worker on a throwaway stack, with a local model
+# (default LM Studio on :1234; options in scripts/exercise.sh)
+[group("test")]
+exercise *args:
+    scripts/exercise.sh "$@"
+
 # Lint, format check and type check on the host
 [group("test")]
 check:

@@ -179,6 +179,7 @@ settings, the worker logs one line and idles (`just worker-logs`).
 | Command | Does |
 |---|---|
 | `just test [pytest args]` | Full test suite in Docker (separate, in-memory stack; 80% coverage gate) |
+| `just exercise [--model ID] [--keep]` | Every endpoint and the summary worker end to end, on a throwaway stack with a local model (default LM Studio on `127.0.0.1:1234`; see `scripts/exercise.sh`) |
 | `just check` | Ruff lint and format check, mypy (strict) |
 | `just infra`, then `just run` | Infrastructure in Docker, api on the host (to debug it) |
 | `just migration <name>` | Generate a migration from `schema/schema.sql` (and the row models) |

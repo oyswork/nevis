@@ -1,0 +1,16 @@
+# A throwaway copy of the dev stack for scripts/exercise.sh (`just exercise`), layered over
+# docker-compose.yml: its own project, api port and database in memory, so it runs next to the
+# dev stack and never touches its data. The script sets the worker's NEVIS_SUMMARY_* variables.
+name: nevis-exercise
+
+services:
+  db:
+    ports: !reset []
+    volumes: !override
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  api:
+    ports: !override
+      - "127.0.0.1:58000:8000"
