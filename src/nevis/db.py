@@ -16,6 +16,21 @@ CONNECT_TIMEOUT_SECONDS = 5
 # at most this long and requests waiting for a free one don't queue forever.
 COMMAND_TIMEOUT_SECONDS = 10
 
+# Session settings of every pool connection, sent in the connection's startup packet (so no
+# per-query SET LOCAL and transaction). Custom, extension-prefixed settings are accepted before
+# the extension's library loads and take effect when it does.
+# - `word_similarity_threshold` is what `<%` (typo matches, nevis.search.clients) compares with:
+#   Task 0 measured 0.64 for "neviswelth" and 0.625 for "jon doe" against their clients, and 0.25
+#   at most for unrelated text; the default 0.6 would miss the second.
+# - `hnsw.ef_search` is how many candidates an HNSW scan keeps; the default 40 would cap the
+#   nearest chunks (nevis.search.documents) at 40, whatever the LIMIT.
+WORD_SIMILARITY_THRESHOLD = "0.5"
+HNSW_EF_SEARCH = "200"
+SERVER_SETTINGS = {
+    "pg_trgm.word_similarity_threshold": WORD_SIMILARITY_THRESHOLD,
+    "hnsw.ef_search": HNSW_EF_SEARCH,
+}
+
 DATABASE_UNAVAILABLE_DETAIL = "Database unavailable"
 DATABASE_TIMEOUT_DETAIL = "Database timed out"
 # Failures to reach Postgres, as opposed to errors in a statement (those stay 500s). OSError
@@ -73,6 +88,7 @@ async def create_pool(settings: Settings) -> DbPool:
         timeout=CONNECT_TIMEOUT_SECONDS,
         command_timeout=COMMAND_TIMEOUT_SECONDS,
         init=register_vector_codec,
+        server_settings=SERVER_SETTINGS,
     )
 
 
