@@ -29,8 +29,8 @@ async def create_document(
 ) -> DocumentRead:
     """Store a document for the client.
 
-    It becomes searchable shortly after. If the worker has a local summarization model, `summary`
-    is filled in later (read it back with GET /documents/{id}); otherwise it stays null.
+    It is searchable as soon as this returns. If the worker has a local summarization model,
+    `summary` is filled in later (read it back with GET /documents/{id}); otherwise it stays null.
     """
     try:
         document = await repository.create_document(pool, embedder, client_id, payload)
