@@ -1,0 +1,76 @@
+# The same gates as before a commit: `just check` (ruff, strict mypy) and `just test` (the full
+# suite in Docker against the throwaway test stack, with the 80% coverage gate).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: extractions/setup-just@v3
+      # uv installs the Python from .python-version and syncs uv.lock on the first `uv run`.
+      - run: uv sync --locked
+      - run: just check
+
+  test:
+    runs-on: ubuntu-latest
+    # The first build downloads the embedding models into the image.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v3
+      - run: just test
+      - name: Tear down the test stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml down --volumes
+
+  # On main, once both gates pass: tag the commit v<version from pyproject.toml> and publish a
+  # GitHub release for it. A version that is already released is skipped, so bump the version
+  # in pyproject.toml to cut a new release.
+  release:
+    needs: [check, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the version from pyproject.toml
+        id: version
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.+-][0-9A-Za-z.+-]+)?$ ]]; then
+            echo "::error file=pyproject.toml::not a release version: $version"
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "::notice::$TAG already exists; bump the version in pyproject.toml to release"
+            exit 0
+          fi
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
