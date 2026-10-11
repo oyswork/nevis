@@ -1,0 +1,2 @@
+# Caddy's local CA, for the smoke test (deploy/smoke.sh): no public CA can validate 127.0.0.1.
+tls internal

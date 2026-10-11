@@ -1,0 +1,43 @@
+# The production reverse proxy (deploy/compose.prod.yml): HTTPS for the machine's public IP,
+# Basic auth, rate limits and a body size cap in front of the api. Environment variables are
+# substituted before parsing, so they can also pick the imported file.
+{
+	# Clients send no SNI to an IP address, and in Docker the connection's local address is the
+	# container's, not the public IP: without this Caddy finds no certificate for the handshake.
+	default_sni {$NEVIS_PUBLIC_IP}
+	# Rate-limit before checking passwords: bcrypt is slow on purpose, so a flood of wrong
+	# passwords would otherwise cost CPU per request.
+	order rate_limit before basic_auth
+	servers {
+		timeouts {
+			read_body 10s
+			idle 2m
+		}
+	}
+}
+
+{$NEVIS_PUBLIC_IP} {
+	# public: a Let's Encrypt certificate for the IP address; internal: Caddy's own CA (CI).
+	import tls-{$NEVIS_TLS:public}.caddy
+
+	# The largest valid document (100,000 characters) is at most ~400 KB of JSON.
+	request_body {
+		max_size 1MB
+	}
+
+	rate_limit {
+		zone per_client {
+			key {remote_host}
+			events 30
+			window 10s
+		}
+	}
+
+	# Health checks stay open for monitoring; everything else needs the credentials.
+	@protected not path /health /health/ready
+	basic_auth @protected {
+		{$NEVIS_BASIC_AUTH_USER} {$NEVIS_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy api:8000
+}

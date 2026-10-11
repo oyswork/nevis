@@ -1,0 +1,150 @@
+# Manual deploy of a release to the server: Actions → Deploy → Run workflow, with a version
+# (default: the latest release). Over SSH, step by step (deploy/deploy.sh on the server): prepare
+# (stage the compose file, pull, start Postgres), back up the database (kept on the server), then
+# apply the migrations from here through a tunnel (deploy/migrate.sh; the server has no Atlas),
+# then start the release and check it from outside. A rollback is a deploy of an older version.
+# Setup: deploy/bootstrap.md.
+#
+# The `production` environment holds the settings (restrict it to the main branch):
+#   vars.DEPLOY_HOST            the server's public IPv4 address (also the site's address)
+#   vars.DEPLOY_USER            the SSH user whose key may only run deploy.sh and tunnel to Postgres
+#   secrets.DEPLOY_SSH_KEY      that user's private key
+#   secrets.DEPLOY_KNOWN_HOSTS  the server's host key line(s), from `ssh-keyscan <ip>`, checked
+#   secrets.POSTGRES_PASSWORD   the same as in the server's .env, for the migrations
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release to deploy, e.g. 0.2.0, or "latest"'
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  # Where the tunnel to the server's Postgres (127.0.0.1:5432 there) ends on the runner.
+  TUNNEL_PORT: 15432
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://${{ vars.DEPLOY_HOST }}/docs
+    steps:
+      - name: Resolve the release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          if [[ "$REQUESTED" == latest ]]; then
+            tag=$(gh release view --json tagName --jq .tagName) \
+              || { echo "::error::there is no release yet"; exit 1; }
+          else
+            tag="v${REQUESTED#v}"
+            gh release view "$tag" --json tagName > /dev/null \
+              || { echo "::error::no release $tag"; exit 1; }
+          fi
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::not a release version: $version"
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prefix=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::deploying $tag"
+      # The release's own compose file, migrations and scripts.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Check the release's images exist
+        env:
+          PREFIX: ${{ steps.release.outputs.prefix }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          for image in nevis nevis-proxy; do
+            docker manifest inspect "$PREFIX/$image:$VERSION" > /dev/null \
+              || { echo "::error::$PREFIX/$image:$VERSION is missing"; exit 1; }
+          done
+      - name: Set up SSH
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          # `server` below. The key's forced command (deploy.sh) gets the arguments as
+          # SSH_ORIGINAL_COMMAND; a connection without a command (-N) may only forward to Postgres.
+          cat > ~/.ssh/config << EOF
+          Host server
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 15
+          EOF
+          chmod 600 ~/.ssh/*
+      - name: Prepare
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        # The arguments expand here on purpose: deploy.sh receives and validates them.
+        run: |
+          # shellcheck disable=SC2029
+          ssh server "prepare $VERSION" < deploy/compose.prod.yml
+      - name: Back up the database (kept on the server)
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          # shellcheck disable=SC2029
+          ssh server "backup $VERSION"
+      - name: Migrate
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: ${{ env.TUNNEL_PORT }}
+          PGUSER: nevis
+          PGDATABASE: nevis
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          ssh -f -N -M -S ~/.ssh/tunnel -o ExitOnForwardFailure=yes \
+            -L "127.0.0.1:$TUNNEL_PORT:127.0.0.1:5432" server
+          trap 'ssh -S ~/.ssh/tunnel -O exit server' EXIT
+          deploy/migrate.sh
+      - name: Start
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          # shellcheck disable=SC2029
+          ssh server "start $VERSION"
+      - name: Check the site from outside
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          curl --silent --show-error --fail --retry 12 --retry-delay 5 --retry-all-errors \
+            "https://$DEPLOY_HOST/health/ready"
+          echo
+          code=$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$DEPLOY_HOST/search?q=x")
+          [[ "$code" == 401 ]] || { echo "::error::/search answered $code without credentials, not 401"; exit 1; }

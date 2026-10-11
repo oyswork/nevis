@@ -198,4 +198,20 @@ for db in nevis atlas_dev; do docker compose exec db psql -U nevis -d $db \
 just migrate && just reembed
 ```
 
-Not deployed anywhere.
+## Deployment
+
+Releases and deploys run on GitHub Actions; one-time server setup:
+[`deploy/bootstrap.md`](deploy/bootstrap.md).
+
+- **Release:** a push to `main` that passes every check (lint and types, tests, and
+  `just prod-smoke`, a smoke test of the production stack) pushes the images to ghcr.io and
+  publishes release `v<version>` with the version from `pyproject.toml`. Bump it to release again.
+- **Deploy:** Actions → Deploy → Run workflow, with a version (default: the latest release). Over
+  SSH it has [`deploy/deploy.sh`](deploy/deploy.sh) pull the images and back up the database on
+  the server, applies the migrations from CI through a tunnel
+  ([`deploy/migrate.sh`](deploy/migrate.sh); the server has no Atlas), then starts the release and
+  checks it. A rollback is a deploy of an older version.
+- **On the server:** [`deploy/compose.prod.yml`](deploy/compose.prod.yml) runs Postgres, the api
+  and the worker from the release images, behind Caddy. Caddy serves `https://<server ip>` with a
+  Let's Encrypt certificate for the IP address (no domain needed), requires Basic auth on
+  everything except `/health`, rate-limits each client and caps request bodies at 1 MB.

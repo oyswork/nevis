@@ -48,6 +48,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY --from=models /opt/models /opt/models
 
 
+# Production reverse proxy: Caddy (automatic HTTPS) plus the rate-limit module, which isn't in
+# the stock build, with deploy/caddy baked in. The module has no recent tag: pinned to a commit.
+FROM caddy:2.11.7-builder AS proxy-build
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@5625512f24f6f59d6f64fb3aafe5eecff0b286db
+
+FROM caddy:2.11.7 AS proxy
+COPY --from=proxy-build /usr/bin/caddy /usr/bin/caddy
+COPY deploy/caddy /etc/caddy
+
+
 # Production image: the default build target.
 FROM python:3.14-slim AS runtime
 

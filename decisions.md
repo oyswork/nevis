@@ -190,3 +190,45 @@ Kept for the record.
 - A document that always fails is retried hourly forever; `summary_attempts` shows it.
 - On shutdown an in-flight call is abandoned, and its document waits out the lease.
 - The worker doesn't auto-reload in development: `docker compose restart worker`.
+
+## Deployment: release images, a manual deploy over SSH, Caddy in front
+
+**Decision.**
+
+- CI pushes two images per release to ghcr.io: the app (`runtime`, also the worker) and the proxy
+  (Caddy). The server builds nothing and has no checkout: `deploy/compose.prod.yml` plus a `.env`.
+- Deploys are manual (`.github/workflows/deploy.yml`, a version or `latest`). The workflow drives
+  `deploy/deploy.sh` over SSH, with a key whose forced command is that script and whose only
+  permitted tunnel is the server's loopback Postgres: `prepare` (stage the compose file, pull,
+  start Postgres), `backup` (`pg_dump`, kept on the server), then CI applies the extensions and
+  migrations through the tunnel (`deploy/migrate.sh`, Atlas in a container on the runner), then
+  `start` (switch, record, check over HTTPS).
+- Caddy terminates TLS with a Let's Encrypt certificate for the server's IP address (the
+  `shortlived` profile, 6 days, renewed automatically), requires Basic auth on everything except
+  `/health`, rate-limits per client (30 requests per 10 s) and caps bodies at 1 MB.
+
+**Why.**
+
+- Caddy over nginx: it obtains and renews certificates by itself, so the whole proxy ships as an
+  image with each release; nginx would need certbot and renewal hooks set up on the host.
+- An IP certificate because there is no domain; Let's Encrypt has issued them since January 2026.
+- Basic auth because client data is personal data and the API had no authentication; it is also
+  the "credentials to the API" the assignment asks for.
+- Rate limiting before auth: bcrypt is slow on purpose, and each search costs an embedding.
+- Images pulled, not built on the server: the release that was tested in CI is the one that runs,
+  and the server needs neither the source nor build resources.
+- Migrations from CI: the server runs no Atlas, and a failed migration stops the deploy before the
+  new release starts. Backups stay on the server so no client data goes to GitHub.
+
+**Trade-offs.**
+
+- The rate limiter is a third-party Caddy module (`caddy-ratelimit`), built in with `xcaddy` and
+  pinned to a commit; `just prod-smoke` checks it still answers 429.
+- IP certificates last 6 days: ports 80/443 must stay open for renewals, and a changed IP needs a
+  redeploy. Clients send no SNI to an IP, hence `default_sni`.
+- One instance: a deploy restarts the api (a few seconds of errors).
+- Migrations only go forward, and they run while the previous release still serves: a migration
+  must not break it (add before you drop). Rolling back across one means restoring the backup
+  taken before it; backups stay on the server, not off-site.
+- GitHub holds the database password (for the migrations) and a key that can tunnel to Postgres.
+- One shared Basic auth credential, no per-user accounts or audit trail.

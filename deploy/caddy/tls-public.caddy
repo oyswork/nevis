@@ -1,0 +1,8 @@
+# Let's Encrypt certificates for IP addresses exist only in the `shortlived` profile: valid for
+# 160 hours, renewed by Caddy every couple of days. Validated over ports 80/443, which must stay
+# open for every renewal.
+tls {
+	issuer acme {
+		profile shortlived
+	}
+}

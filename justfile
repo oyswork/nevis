@@ -66,6 +66,11 @@ test-infra:
     {{ test_compose }} up --detach --wait db
     {{ test_compose }} run --rm migrate
 
+# Smoke-test the production stack (release images, Caddy, HTTPS, auth) on 127.0.0.1:80/443
+[group("test")]
+prod-smoke:
+    deploy/smoke.sh
+
 # Lint, format check and type check on the host
 [group("test")]
 check:

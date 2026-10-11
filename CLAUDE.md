@@ -30,6 +30,9 @@ Everyday commands are `just` recipes (`just` lists them; see `justfile`).
   infrastructure. The URL defaults to localhost:55432 (`NEVIS_TEST_DATABASE_URL`).
 - Lint, format check, type check (strict): `just check`; fix with
   `uv run ruff check --fix . && uv run ruff format .`
+- Production smoke test: `just prod-smoke` builds the release images and runs
+  `deploy/compose.prod.yml` on 127.0.0.1:80/443 (Caddy's internal CA), then removes it. Releases
+  and deploys: README "Deployment", server setup `deploy/bootstrap.md`, why `decisions.md`.
 - Don't use `docker compose up --wait migrate`: `--wait` reports a one-shot as failed even when
   it exits 0. Wait for `db`, then `docker compose run --rm migrate`.
 

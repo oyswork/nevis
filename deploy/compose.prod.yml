@@ -1,0 +1,92 @@
+# Production stack, run on the server as /opt/nevis/compose.yaml by deploy/deploy.sh, with its
+# settings in /opt/nevis/.env (deploy/.env.example). Images come from the registry, tagged with the
+# release version; nothing is built or mounted from a checkout. Only Caddy publishes ports to the
+# outside. No migrations here: the deploy workflow applies them first (deploy/migrate.sh).
+# deploy/smoke.sh runs the same file against locally built images.
+
+name: nevis-prod
+
+x-image: &image ${NEVIS_IMAGE_PREFIX:?set in .env}/nevis:${NEVIS_IMAGE_TAG:?set by deploy.sh}
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nevis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-nevis}
+    # Loopback only: the deploy workflow reaches it through an SSH tunnel to run the migrations
+    # (deploy/migrate.sh). Not reachable from outside the machine.
+    ports:
+      - "127.0.0.1:${NEVIS_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Over TCP: during first-start init Postgres listens only on the unix socket.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    image: *image
+    # One worker: each process loads the embedding models (~380 MB). Forwarded headers are
+    # trusted from any address because only Caddy can reach the api (no published port).
+    command: ["uvicorn", "--factory", "nevis.main:create_app", "--host", "0.0.0.0", "--port", "8000",
+              "--proxy-headers", "--forwarded-allow-ips", "*"]
+    environment:
+      NEVIS_DATABASE_URL: &database-url postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nevis}
+      NEVIS_SEARCH_RERANK: ${NEVIS_SEARCH_RERANK:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Summary worker: same image. Idles unless NEVIS_SUMMARY_* point at a local model.
+  worker:
+    image: *image
+    command: ["python", "-m", "nevis.summaries.worker"]
+    environment:
+      NEVIS_DATABASE_URL: *database-url
+      NEVIS_SUMMARY_API_URL: ${NEVIS_SUMMARY_API_URL:-}
+      NEVIS_SUMMARY_MODEL: ${NEVIS_SUMMARY_MODEL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # HTTPS, Basic auth and rate limits in front of the api (deploy/caddy/Caddyfile).
+  caddy:
+    image: ${NEVIS_IMAGE_PREFIX}/nevis-proxy:${NEVIS_IMAGE_TAG}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      NEVIS_PUBLIC_IP: ${NEVIS_PUBLIC_IP:?set in .env}
+      NEVIS_TLS: ${NEVIS_TLS:-public}
+      NEVIS_BASIC_AUTH_USER: ${NEVIS_BASIC_AUTH_USER:?set in .env}
+      NEVIS_BASIC_AUTH_HASH: ${NEVIS_BASIC_AUTH_HASH:?set in .env}
+    volumes:
+      # Certificates and the ACME account. Must survive redeploys: losing them means asking Let's
+      # Encrypt again on every start, which runs into its rate limits.
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
