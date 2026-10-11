@@ -54,43 +54,6 @@ services:
       db:
         condition: service_healthy
 
-  # Search index, derived from Postgres (decisions.md). Pinned: client substring search relies on
-  # an experimental feature. MEILI_ENV=development also serves a search preview on its port.
-  meilisearch:
-    image: getmeili/meilisearch:v1.54.3
-    environment:
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-nevis-dev-master-key}
-      MEILI_ENV: development
-      MEILI_NO_ANALYTICS: "true"
-    ports:
-      - "127.0.0.1:${MEILI_PORT:-7700}:7700"
-    volumes:
-      # On the host like the dev database; `just clean` deletes it.
-      - ./.data/meilisearch:/meili_data
-      # Models for the built-in embedder, downloaded once.
-      - huggingface-cache:/root/.cache/huggingface
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  # One-shot: creates the search indexes and applies their settings (nevis.search.setup). The
-  # first run downloads the embedding model.
-  search-setup:
-    build:
-      context: .
-      target: dev
-    command: ["python", "-m", "nevis.search.setup"]
-    volumes:
-      - ./src:/app/src:ro
-    environment: &search-env
-      NEVIS_MEILISEARCH_URL: http://meilisearch:7700
-      NEVIS_MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-nevis-dev-master-key}
-    depends_on:
-      meilisearch:
-        condition: service_healthy
-
   # Development server: the dev image with src/ mounted from the host and auto-reload.
   api:
     build:
@@ -101,7 +64,6 @@ services:
     volumes:
       - ./src:/app/src:ro
     environment:
-      <<: *search-env
       NEVIS_DATABASE_URL: &database-url postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/${POSTGRES_DB:-nevis}
       # Optional cross-encoder reranking of document search (see .env.example); empty: off.
       NEVIS_SEARCH_RERANK: ${NEVIS_SEARCH_RERANK:-}
@@ -109,8 +71,6 @@ services:
       - "8000:8000"
     depends_on:
       migrate:
-        condition: service_completed_successfully
-      search-setup:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
@@ -143,25 +103,6 @@ services:
       migrate:
         condition: service_completed_successfully
 
-  # Tool, not part of the stack: empties the search indexes and enqueues an index job for every
-  # client and document (nevis.search.reindex); the api's worker refills them.  `just reindex`
-  reindex:
-    build:
-      context: .
-      target: dev
-    profiles: [tools]
-    command: ["python", "-m", "nevis.search.reindex"]
-    volumes:
-      - ./src:/app/src:ro
-    environment:
-      <<: *search-env
-      NEVIS_DATABASE_URL: *database-url
-    depends_on:
-      db:
-        condition: service_healthy
-      meilisearch:
-        condition: service_healthy
-
   # Tool, not part of the stack: embeds documents that have no chunks yet (all with `--all`) and
   # recomputes every client's search_text (nevis.search.reembed).  `just reembed`
   reembed:
@@ -173,11 +114,7 @@ services:
     volumes:
       - ./src:/app/src:ro
     environment:
-      <<: *search-env
       NEVIS_DATABASE_URL: *database-url
     depends_on:
       db:
         condition: service_healthy
-
-volumes:
-  huggingface-cache:

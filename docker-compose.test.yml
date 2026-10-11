@@ -1,5 +1,5 @@
 # Test infrastructure, layered over docker-compose.yml. `just test` runs the suite in the
-# `tests` container; `just test-infra` starts only the database and Meilisearch, for
+# `tests` container; `just test-infra` starts only the database, for
 # `uv run pytest` on the host.
 #
 # A separate project, port and database with in-memory storage, so it can run next to the dev
@@ -25,22 +25,6 @@ services:
       ATLAS_URL: postgresql://nevis:nevis@db:5432/nevis_test?sslmode=disable&search_path=public
       ATLAS_DEV_URL: postgresql://nevis:nevis@db:5432/atlas_dev?sslmode=disable&search_path=public
 
-  # Index data in memory like the database; the model cache stays in its volume, so the
-  # embedding model is downloaded once, not on every run.
-  meilisearch:
-    environment:
-      MEILI_MASTER_KEY: nevis-test-master-key  # matches tests/conftest.py
-    ports: !override
-      - "127.0.0.1:57700:7700"
-    volumes: !override
-      - huggingface-cache:/root/.cache/huggingface
-    tmpfs:
-      - /meili_data
-
-  search-setup:
-    environment:
-      NEVIS_MEILISEARCH_API_KEY: nevis-test-master-key
-
   # Tests run the app in-process; keep the api (and its port 8000) out of the test stack.
   api:
     profiles: [app]
@@ -60,12 +44,9 @@ services:
       - .:/app
     environment:
       NEVIS_TEST_DATABASE_URL: postgresql://nevis:nevis@db:5432/nevis_test
-      NEVIS_TEST_MEILISEARCH_URL: http://meilisearch:7700
       # Keep coverage data and the pytest cache out of the mounted repository.
       COVERAGE_FILE: /tmp/.coverage
       PYTEST_ADDOPTS: -p no:cacheprovider
     depends_on:
       migrate:
-        condition: service_completed_successfully
-      search-setup:
         condition: service_completed_successfully

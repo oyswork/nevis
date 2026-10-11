@@ -34,16 +34,3 @@ class DocumentChunk(BaseModel):
     ordinal: int
     text: str
     embedding: list[float]
-
-
-class Outbox(BaseModel):
-
-    id: int
-    kind: str
-    entity_id: UUID
-    attempts: int
-    available_at: AwareDatetime
-    locked_until: AwareDatetime | None
-    last_error: str | None
-    failed_at: AwareDatetime | None
-    created_at: AwareDatetime

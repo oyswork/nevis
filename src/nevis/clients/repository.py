@@ -5,8 +5,6 @@ import asyncpg
 from nevis.clients.schemas import ClientCreate
 from nevis.db import DbPool
 from nevis.db_models import Client
-from nevis.outbox import repository as outbox
-from nevis.outbox.repository import OutboxKind
 from nevis.text import client_search_text
 
 EMAIL_UNIQUE_INDEX = "uq_clients_email_lower"
@@ -46,7 +44,6 @@ async def create_client(pool: DbPool, data: ClientCreate) -> Client:
                 msg = "INSERT INTO clients returned no row"
                 raise RuntimeError(msg)
             client = Client(**row)
-            await outbox.enqueue(connection, OutboxKind.INDEX_CLIENT, client.id)
     except asyncpg.UniqueViolationError as exc:
         if exc.constraint_name == EMAIL_UNIQUE_INDEX:
             raise EmailAlreadyExistsError from exc

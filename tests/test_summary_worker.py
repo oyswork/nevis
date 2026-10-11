@@ -53,10 +53,10 @@ def test_the_model_call_is_bounded_by_a_deadline_shorter_than_the_lease() -> Non
 
 
 @pytest.mark.unit
-def test_worker_settings_need_neither_meilisearch_nor_embedding_variables(
+def test_worker_settings_need_no_embedding_variables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    for name in ("NEVIS_MEILISEARCH_URL", "NEVIS_MEILISEARCH_API_KEY", "NEVIS_SEARCH_RERANK"):
+    for name in ("NEVIS_SEARCH_RERANK", "NEVIS_MODEL_CACHE_DIR"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("NEVIS_DATABASE_URL", "postgresql://u@db/nevis")
 
@@ -64,8 +64,6 @@ def test_worker_settings_need_neither_meilisearch_nor_embedding_variables(
 
     assert str(settings.database_url) == "postgresql://u@db/nevis"
     assert (settings.summary_api_url, settings.summary_model) == (None, None)
-    with pytest.raises(ValidationError, match="meilisearch_url"):
-        Settings()  # the api still needs them
 
 
 @pytest.mark.unit
@@ -642,8 +640,6 @@ async def test_create_document_notifies_the_worker_and_enqueues_no_summary_job(
             assert await received.get() == response.json()["id"]
     finally:
         await listener.close()
-    kinds = {row["kind"] for row in await db_pool.fetch("SELECT kind FROM outbox")}
-    assert "summarize_document" not in kinds
 
 
 @pytest.mark.integration
@@ -665,14 +661,6 @@ async def test_rejected_document_sends_no_notification(
         assert received.empty()
     finally:
         await listener.close()
-
-
-@pytest.mark.integration
-async def test_outbox_no_longer_accepts_summary_jobs(db_pool: DbPool) -> None:
-    with pytest.raises(asyncpg.CheckViolationError, match="outbox_kind_check"):
-        await db_pool.execute(
-            "INSERT INTO outbox (kind, entity_id) VALUES ('summarize_document', gen_random_uuid())"
-        )
 
 
 @pytest.mark.unit

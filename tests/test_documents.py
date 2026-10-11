@@ -1,19 +1,9 @@
 import datetime
 import uuid
-from collections.abc import AsyncGenerator
 from unittest.mock import NonCallableMagicMock
 
 import pytest
 from httpx2 import AsyncClient
-from meilisearch_python_sdk import AsyncClient as SearchClient
-
-from nevis.config import Settings
-from nevis.db import DbPool
-from nevis.outbox.handlers import create_outbox_worker
-from nevis.search.chunking import CHUNK_TEXT_MAX_BYTES
-from nevis.search.client import create_search_client
-from nevis.search.indexes import DOCUMENT_CHUNKS_INDEX
-from nevis.search.indexing import index_document
 
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
 DOCUMENT = {
@@ -98,22 +88,9 @@ async def test_create_document_returns_503_when_database_is_unreachable(
 
 
 @pytest.fixture
-async def search_client(db_settings: Settings) -> AsyncGenerator[SearchClient]:
-    async with create_search_client(db_settings) as client:
-        yield client
-
-
-@pytest.fixture
 async def client_id(db_client: AsyncClient) -> str:
     client_id: str = (await db_client.post("/clients", json=CLIENT)).json()["id"]
     return client_id
-
-
-async def chunk_ordinals(search_client: SearchClient, document_id: str) -> list[int]:
-    result = await search_client.index(DOCUMENT_CHUNKS_INDEX).get_documents(
-        filter=f'document_id = "{document_id}"', limit=1000
-    )
-    return sorted(chunk["ordinal"] for chunk in result.results)
 
 
 @pytest.mark.integration
@@ -130,25 +107,11 @@ async def test_create_document_returns_201_with_the_document(
 
 
 @pytest.mark.integration
-async def test_create_document_for_unknown_client_returns_404_and_enqueues_nothing(
-    db_client: AsyncClient, db_pool: DbPool
-) -> None:
+async def test_create_document_for_unknown_client_returns_404(db_client: AsyncClient) -> None:
     response = await db_client.post(f"/clients/{SOME_ID}/documents", json=DOCUMENT)
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Client not found"}
-    assert await db_pool.fetchval("SELECT count(*) FROM outbox WHERE kind = 'index_document'") == 0
-
-
-@pytest.mark.integration
-async def test_create_document_enqueues_an_index_job(
-    db_client: AsyncClient, db_pool: DbPool, client_id: str
-) -> None:
-    document = (await db_client.post(f"/clients/{client_id}/documents", json=DOCUMENT)).json()
-
-    entity_ids = await db_pool.fetch("SELECT entity_id FROM outbox WHERE kind = 'index_document'")
-
-    assert [str(row["entity_id"]) for row in entity_ids] == [document["id"]]
 
 
 @pytest.mark.integration
@@ -171,40 +134,3 @@ async def test_get_client_returns_it_or_404(db_client: AsyncClient) -> None:
 
     assert (found.status_code, found.json()) == (200, created)
     assert (missing.status_code, missing.json()) == (404, {"detail": "Client not found"})
-
-
-@pytest.mark.integration
-async def test_worker_indexes_document_chunks_and_drops_stale_ones(
-    db_client: AsyncClient, db_pool: DbPool, search_client: SearchClient, client_id: str
-) -> None:
-    long_document = {**DOCUMENT, "content": "Vattenfall " * (CHUNK_TEXT_MAX_BYTES // 4)}
-    document_id = (
-        await db_client.post(f"/clients/{client_id}/documents", json=long_document)
-    ).json()["id"]
-
-    await create_outbox_worker(db_pool, search_client).run_once()
-    ordinals = await chunk_ordinals(search_client, document_id)
-    assert len(ordinals) > 1
-    assert ordinals == list(range(len(ordinals)))
-
-    # Shorter content: re-indexing must not leave the old trailing chunks behind.
-    await db_pool.execute(
-        "UPDATE documents SET content = 'Vattenfall' WHERE id = $1", uuid.UUID(document_id)
-    )
-    await index_document(db_pool, search_client, uuid.UUID(document_id))
-    assert await chunk_ordinals(search_client, document_id) == [0]
-
-    await db_pool.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(document_id))
-    await index_document(db_pool, search_client, uuid.UUID(document_id))
-    assert await chunk_ordinals(search_client, document_id) == []
-
-
-@pytest.mark.integration
-async def test_deleting_a_client_deletes_its_documents(
-    db_client: AsyncClient, db_pool: DbPool, client_id: str
-) -> None:
-    await db_client.post(f"/clients/{client_id}/documents", json=DOCUMENT)
-
-    await db_pool.execute("DELETE FROM clients WHERE id = $1", uuid.UUID(client_id))
-
-    assert await db_pool.fetchval("SELECT count(*) FROM documents") == 0

@@ -7,42 +7,37 @@ set positional-arguments := true
 
 set dotenv-load := true
 
-# Recipes start the db and Meilisearch with `up --wait` and then `run --rm` the one-shots (migrate,
-# search-setup): `--wait` reports a one-shot as failed even when it exits 0, while `run` blocks
-# until it finishes and returns its exit code, so nothing starts against a half-set-up stack.
+# Recipes start the db with `up --wait` and then `run --rm` the one-shot (migrate): `--wait`
+# reports a one-shot as failed even when it exits 0, while `run` blocks until it finishes and
+# returns its exit code, so nothing starts against a half-set-up stack.
 
 compose := "docker compose"
 test_compose := "docker compose -f docker-compose.yml -f docker-compose.test.yml"
 dev_database_url := "postgresql://" + env("POSTGRES_USER", "nevis") + ":" + env("POSTGRES_PASSWORD", "nevis") + "@localhost:" + env("POSTGRES_PORT", "5432") + "/" + env("POSTGRES_DB", "nevis")
-dev_meilisearch_url := "http://localhost:" + env("MEILI_PORT", "7700")
-dev_meilisearch_key := env("MEILI_MASTER_KEY", "nevis-dev-master-key")
 
 # List the available recipes
 [group("help")]
 help:
     @just --list --unsorted
 
-# Run the whole system in Docker (db, Meilisearch, their setup, api with auto-reload, summary worker) on :8000
+# Run the whole system in Docker (db, migrations, api with auto-reload, summary worker) on :8000
 [group("run")]
 up:
     {{ compose }} up --build --detach --wait
     @echo "API: http://localhost:8000/docs  (logs: just logs)"
 
-# Run only the infrastructure (db, migrations, Meilisearch, index setup) in Docker; then `just run`
+# Run only the infrastructure (db, migrations) in Docker; then `just run`
 # (no summary worker: start it with `docker compose up --detach worker`)
 [group("run")]
 infra:
     {{ compose }} stop api
-    {{ compose }} up --detach --wait db meilisearch
+    {{ compose }} up --detach --wait db
     {{ compose }} run --rm migrate
-    {{ compose }} run --rm search-setup
 
 # Run the api on the host with auto-reload, against the infrastructure from `just infra`
 [group("run")]
 run: infra
-    NEVIS_DATABASE_URL={{ dev_database_url }} NEVIS_MEILISEARCH_URL={{ dev_meilisearch_url }} \
-    NEVIS_MEILISEARCH_API_KEY={{ dev_meilisearch_key }} \
-    uv run uvicorn --factory nevis.main:create_app --reload
+    NEVIS_DATABASE_URL={{ dev_database_url }} uv run uvicorn --factory nevis.main:create_app --reload
 
 # Follow the logs of the summary worker
 [group("run")]
@@ -65,12 +60,11 @@ down:
 test *args:
     {{ test_compose }} run --rm --build tests pytest "$@"
 
-# Start only the test database and Meilisearch, to run or debug `uv run pytest` on the host
+# Start only the test database, to run or debug `uv run pytest` on the host
 [group("test")]
 test-infra:
-    {{ test_compose }} up --detach --wait db meilisearch
+    {{ test_compose }} up --detach --wait db
     {{ test_compose }} run --rm migrate
-    {{ test_compose }} run --rm search-setup
 
 # Lint, format check and type check on the host
 [group("test")]
@@ -83,16 +77,6 @@ check:
 [group("database")]
 migrate:
     {{ compose }} run --rm migrate
-
-# Create the dev search indexes and apply their settings (safe to re-run)
-[group("search")]
-search-setup:
-    {{ compose }} run --rm search-setup
-
-# Rebuild the dev search indexes from Postgres (the running api's worker refills them)
-[group("search")]
-reindex:
-    {{ compose }} run --rm reindex
 
 # Embed documents that have no chunks yet (--all: every document) and refresh clients' search_text
 [group("search")]
@@ -118,9 +102,9 @@ _schema-commit-note:
     @echo "Review the generated SQL, then commit these together (schema, migration, atlas.sum, models):"
     @git status --short -- schema src/nevis/db_models.py
 
-# Stop the dev stack and delete the dev database and search index in .data/
-[confirm("Delete the dev database and search index in .data/?")]
+# Stop the dev stack and delete the dev database in .data/
+[confirm("Delete the dev database in .data/?")]
 [group("database")]
 clean:
     {{ compose }} down
-    rm -rf .data/postgres .data/meilisearch
+    rm -rf .data/postgres

@@ -1,6 +1,6 @@
 """Split document content into overlapping chunks, each embedded and indexed on its own.
 
-The embedder reads at most EMBEDDED_TEXT_MAX_BYTES of "title: chunk"; chunks stay well under
+The embedder reads at most 2048 bytes of "title: chunk"; chunks stay well under
 that (titles are at most 200 characters), so nothing a chunk holds is cut off.
 """
 

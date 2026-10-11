@@ -3,7 +3,7 @@ import json
 import httpx2
 import pytest
 from httpx2 import AsyncClient
-from pydantic import HttpUrl, PostgresDsn, SecretStr, ValidationError
+from pydantic import HttpUrl, PostgresDsn, ValidationError
 
 from nevis.config import Settings, SummarySettings
 from nevis.summaries.client import CONTENT_MAX_CHARS, LocalSummarizer, create_summarizer
@@ -92,8 +92,6 @@ def test_api_settings_ignore_a_half_set_summary_pair(monkeypatch: pytest.MonkeyP
 
     settings = Settings(
         database_url=PostgresDsn("postgresql://u@db/nevis"),
-        meilisearch_url=HttpUrl("http://meilisearch:7700"),
-        meilisearch_api_key=SecretStr("a-key-of-at-least-16-bytes"),
     )
 
     assert not hasattr(settings, "summary_model")

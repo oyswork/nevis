@@ -1,22 +1,10 @@
 from pathlib import Path
 from typing import Self
 
-from pydantic import HttpUrl, PostgresDsn, SecretStr, field_validator, model_validator
+from pydantic import HttpUrl, PostgresDsn, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ASYNCPG_SCHEMES = frozenset({"postgresql", "postgres"})
-
-
-class SearchSettings(BaseSettings):
-    """Meilisearch connection, read from ``NEVIS_*`` environment variables.
-
-    On its own for ``nevis.search.setup``, which needs no database.
-    """
-
-    model_config = SettingsConfigDict(env_prefix="NEVIS_", frozen=True, extra="ignore")
-
-    meilisearch_url: HttpUrl
-    meilisearch_api_key: SecretStr
 
 
 class EmbeddingSettings(BaseSettings):
@@ -87,7 +75,7 @@ class SummarySettings(BaseSettings):
         return self
 
 
-class Settings(SearchSettings, EmbeddingSettings, DatabaseSettings):
+class Settings(EmbeddingSettings, DatabaseSettings):
     """Runtime configuration of the api, read from ``NEVIS_*`` environment variables.
 
     No summary settings: only the worker summarizes, so a half-set ``NEVIS_SUMMARY_*`` pair is
@@ -96,4 +84,4 @@ class Settings(SearchSettings, EmbeddingSettings, DatabaseSettings):
 
 
 class WorkerSettings(DatabaseSettings, SummarySettings):
-    """Configuration of the summary worker: no Meilisearch, no embedding models."""
+    """Configuration of the summary worker: no embedding models."""
