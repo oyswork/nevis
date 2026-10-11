@@ -9,9 +9,9 @@ from httpx2 import AsyncClient
 
 from nevis.db import DbPool
 from nevis.db_models import Document
-from nevis.documents.columns import DOCUMENT_COLUMNS
+from nevis.documents.chunking import CHUNK_TEXT_MAX_BYTES, chunk_text
+from nevis.documents.columns import DOCUMENT_COLUMN_NAMES
 from nevis.embeddings import EMBEDDING_DIMENSIONS, Embedder
-from nevis.search.chunking import CHUNK_TEXT_MAX_BYTES, chunk_text
 
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
 DOCUMENT = {
@@ -145,7 +145,7 @@ async def test_create_document_writes_nothing_when_embedding_fails(
 
 @pytest.mark.unit
 def test_document_columns_match_the_document_model() -> None:
-    assert DOCUMENT_COLUMNS.split(", ") == list(Document.model_fields)
+    assert list(DOCUMENT_COLUMN_NAMES) == list(Document.model_fields)
 
 
 @pytest.mark.integration

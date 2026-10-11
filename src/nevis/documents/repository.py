@@ -4,10 +4,10 @@ import asyncpg
 
 from nevis.db import DbPool
 from nevis.db_models import Document
+from nevis.documents.chunks import embed_document, insert_chunks
 from nevis.documents.columns import DOCUMENT_COLUMNS
 from nevis.documents.schemas import DocumentCreate
 from nevis.embeddings import Embedder
-from nevis.search.chunks import embed_document, insert_chunks
 from nevis.summaries import repository as summaries
 
 CLIENT_FOREIGN_KEY = "fk_documents_client"

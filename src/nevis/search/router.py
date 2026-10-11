@@ -1,9 +1,9 @@
-from typing import Annotated, Any
+from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query
 from pydantic import StringConstraints
 
-from nevis.db import DATABASE_UNAVAILABLE_DETAIL, PoolDep
+from nevis.db import DATABASE_UNAVAILABLE_RESPONSES, PoolDep
 from nevis.embeddings import EmbedderDep, RerankerDep
 from nevis.search import service
 from nevis.search.schemas import SearchHit
@@ -14,11 +14,6 @@ router = APIRouter(tags=["search"])
 QUERY_MAX_LENGTH = 200
 CLIENTS_MAX_LIMIT = 50
 DOCUMENTS_MAX_LIMIT = 20
-
-# Any: as in nevis.db (FastAPI's free-form OpenAPI objects).
-SEARCH_FAILURE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    status.HTTP_503_SERVICE_UNAVAILABLE: {"description": DATABASE_UNAVAILABLE_DETAIL}
-}
 
 SearchQuery = Annotated[
     str,
@@ -32,7 +27,7 @@ SearchQuery = Annotated[
 ]
 
 
-@router.get("/search", responses=SEARCH_FAILURE_RESPONSES)
+@router.get("/search", responses=DATABASE_UNAVAILABLE_RESPONSES)
 async def search(
     q: SearchQuery,
     pool: PoolDep,

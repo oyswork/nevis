@@ -20,8 +20,9 @@ COMMAND_TIMEOUT_SECONDS = 10
 # per-query SET LOCAL and transaction). Custom, extension-prefixed settings are accepted before
 # the extension's library loads and take effect when it does.
 # - `word_similarity_threshold` is what `<%` (typo matches, nevis.search.clients) compares with:
-#   Task 0 measured 0.64 for "neviswelth" and 0.625 for "jon doe" against their clients, and 0.25
-#   at most for unrelated text; the default 0.6 would miss the second.
+#   the search spike (decisions.md) measured 0.64 for "neviswelth" and 0.625 for "jon doe"
+#   against their clients, and 0.25 at most for unrelated text; the default 0.6 would miss the
+#   second.
 # - `hnsw.ef_search` is how many candidates an HNSW scan keeps; the default 40 would cap the
 #   nearest chunks (nevis.search.documents) at 40, whatever the LIMIT.
 WORD_SIMILARITY_THRESHOLD = "0.5"

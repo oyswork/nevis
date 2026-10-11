@@ -79,7 +79,7 @@ services:
       retries: 5
 
   # Summary worker: the same dev image, without the api. It summarizes documents with the local
-  # model (see .env.example) and, with none configured, logs that and idles. `just worker-logs`.
+  # model (see .env.example) and, with none configured, logs that and idles. `just logs worker`.
   # It doesn't auto-reload: after editing src/nevis/summaries, `docker compose restart worker`.
   worker:
     build:
@@ -102,19 +102,3 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-
-  # Tool, not part of the stack: embeds documents that have no chunks yet (all with `--all`) and
-  # recomputes every client's search_text (nevis.search.reembed).  `just reembed`
-  reembed:
-    build:
-      context: .
-      target: dev
-    profiles: [tools]
-    command: ["python", "-m", "nevis.search.reembed"]
-    volumes:
-      - ./src:/app/src:ro
-    environment:
-      NEVIS_DATABASE_URL: *database-url
-    depends_on:
-      db:
-        condition: service_healthy

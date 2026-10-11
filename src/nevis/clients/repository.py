@@ -23,32 +23,30 @@ class EmailAlreadyExistsError(Exception):
 
 
 async def create_client(pool: DbPool, data: ClientCreate) -> Client:
-    """Insert the client and, in the same transaction, the job that indexes it for search."""
+    """Insert the client with its search_text, so it is searchable as soon as this returns."""
     try:
-        async with pool.acquire() as connection, connection.transaction():
-            row = await connection.fetchrow(
-                INSERT_CLIENT,
-                data.first_name,
-                data.last_name,
-                data.email,
-                data.description,
-                data.social_links,
-                client_search_text(
-                    first_name=data.first_name,
-                    last_name=data.last_name,
-                    email=data.email,
-                    description=data.description,
-                ),
-            )
-            if row is None:  # INSERT ... RETURNING always yields the inserted row
-                msg = "INSERT INTO clients returned no row"
-                raise RuntimeError(msg)
-            client = Client(**row)
+        row = await pool.fetchrow(
+            INSERT_CLIENT,
+            data.first_name,
+            data.last_name,
+            data.email,
+            data.description,
+            data.social_links,
+            client_search_text(
+                first_name=data.first_name,
+                last_name=data.last_name,
+                email=data.email,
+                description=data.description,
+            ),
+        )
     except asyncpg.UniqueViolationError as exc:
         if exc.constraint_name == EMAIL_UNIQUE_INDEX:
             raise EmailAlreadyExistsError from exc
         raise
-    return client
+    if row is None:  # INSERT ... RETURNING always yields the inserted row
+        msg = "INSERT INTO clients returned no row"
+        raise RuntimeError(msg)
+    return Client(**row)
 
 
 async def get_client(pool: DbPool, client_id: uuid.UUID) -> Client | None:

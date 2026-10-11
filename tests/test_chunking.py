@@ -2,7 +2,7 @@ from itertools import pairwise
 
 import pytest
 
-from nevis.search.chunking import CHUNK_OVERLAP_WORDS, CHUNK_TEXT_MAX_BYTES, chunk_text
+from nevis.documents.chunking import CHUNK_OVERLAP_WORDS, CHUNK_TEXT_MAX_BYTES, chunk_text
 
 
 def words_of(chunks: list[str]) -> list[str]:

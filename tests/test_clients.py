@@ -88,7 +88,7 @@ async def test_create_client_rejects_unknown_field(client: AsyncClient) -> None:
 async def test_create_client_returns_503_when_database_is_unreachable(
     client: AsyncClient, fake_pool: NonCallableMagicMock
 ) -> None:
-    fake_pool.acquire.side_effect = ConnectionRefusedError
+    fake_pool.fetchrow.side_effect = ConnectionRefusedError
 
     response = await client.post("/clients", json=VALID_CLIENT)
 
@@ -98,13 +98,13 @@ async def test_create_client_returns_503_when_database_is_unreachable(
 
 @pytest.mark.unit
 async def test_create_client_reraises_unique_violation_on_other_constraint(
-    fake_pool: NonCallableMagicMock, fake_connection: NonCallableMagicMock
+    fake_pool: NonCallableMagicMock,
 ) -> None:
     # Only the email index means "duplicate email"; anything else (e.g. a primary key clash)
     # must not be reported to the user as a 409.
     violation = asyncpg.UniqueViolationError("duplicate key value")
     violation.constraint_name = "clients_pkey"
-    fake_connection.fetchrow.side_effect = violation
+    fake_pool.fetchrow.side_effect = violation
 
     with pytest.raises(asyncpg.UniqueViolationError) as raised:
         await repository.create_client(fake_pool, ClientCreate.model_validate(VALID_CLIENT))

@@ -26,8 +26,7 @@ up:
     {{ compose }} up --build --detach --wait
     @echo "API: http://localhost:8000/docs  (logs: just logs)"
 
-# Run only the infrastructure (db, migrations) in Docker; then `just run`
-# (no summary worker: start it with `docker compose up --detach worker`)
+# Run only the infrastructure (db, migrations) in Docker, no worker; then `just run`
 [group("run")]
 infra:
     {{ compose }} stop api
@@ -38,11 +37,6 @@ infra:
 [group("run")]
 run: infra
     NEVIS_DATABASE_URL={{ dev_database_url }} uv run uvicorn --factory nevis.main:create_app --reload
-
-# Follow the logs of the summary worker
-[group("run")]
-worker-logs:
-    {{ compose }} logs --follow worker
 
 # Follow the logs of the dev stack (all services, or the given ones)
 [group("run")]
@@ -71,8 +65,7 @@ test-infra:
 prod-smoke:
     deploy/smoke.sh
 
-# Exercise every endpoint and the summary worker on a throwaway stack, with a local model
-# (default LM Studio on :1234; options in scripts/exercise.sh)
+# Exercise the whole system on a throwaway stack with a local model (see scripts/exercise.sh)
 [group("test")]
 exercise *args:
     scripts/exercise.sh "$@"
@@ -92,11 +85,9 @@ migrate:
 # Embed documents that have no chunks yet (--all: every document) and refresh clients' search_text
 [group("search")]
 reembed *args:
-    {{ compose }} run --rm reembed python -m nevis.search.reembed "$@"
+    {{ compose }} run --rm api python -m nevis.search.reembed "$@"
 
-# Generate a migration from the changes to schema/schema.sql and regenerate the models,
-
-# e.g. `just migration add_documents`
+# Generate a migration from schema/schema.sql changes and regenerate the models: `just migration add_x`
 [group("database")]
 migration name: && models _schema-commit-note
     {{ compose }} run --rm migrate-diff "$1"

@@ -4,8 +4,8 @@ import uuid
 from dataclasses import dataclass
 
 from nevis.db import DbConnection
+from nevis.documents.chunking import chunk_text
 from nevis.embeddings import Embedder
-from nevis.search.chunking import chunk_text
 
 INSERT_CHUNKS = """
     INSERT INTO document_chunks (document_id, ordinal, text, embedding)

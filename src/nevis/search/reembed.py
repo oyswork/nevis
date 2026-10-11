@@ -18,8 +18,8 @@ import asyncpg
 
 from nevis.config import Settings
 from nevis.db import DbPool, create_pool
+from nevis.documents.chunks import embed_document, insert_chunks
 from nevis.embeddings import Embedder, create_embedder
-from nevis.search.chunks import embed_document, insert_chunks
 from nevis.text import client_search_text
 
 logger = logging.getLogger(__name__)

@@ -6,6 +6,14 @@ DocumentRead leaves them out of responses. tests/test_search_data.py checks this
 the model.
 """
 
-DOCUMENT_COLUMNS = (
-    "id, client_id, title, content, summary, summary_attempts, summary_locked_until, created_at"
+DOCUMENT_COLUMN_NAMES = (
+    "id",
+    "client_id",
+    "title",
+    "content",
+    "summary",
+    "summary_attempts",
+    "summary_locked_until",
+    "created_at",
 )
+DOCUMENT_COLUMNS = ", ".join(DOCUMENT_COLUMN_NAMES)
