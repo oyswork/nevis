@@ -3,8 +3,10 @@
 Search across advisor clients and their documents: clients by name, email or description
 (including part of a word), documents by meaning as well as words. Spec: [`task.md`](task.md).
 
-FastAPI, Postgres 16 (source of truth) and Meilisearch (search index, with a built-in local
-embedding model). Why these, and the trade-offs: [`decisions.md`](decisions.md).
+FastAPI and Postgres 16, which also does the searching: `pg_trgm` for clients, full-text search
+plus `pgvector` for documents. Embeddings come from a local model baked into the image; optional
+summaries come from a separate worker service. Why these, and the trade-offs:
+[`decisions.md`](decisions.md).
 
 ## Quick start
 
@@ -16,8 +18,9 @@ just up                          # or: docker compose up --build --detach --wait
 open http://localhost:8000/docs  # Swagger UI; OpenAPI at /openapi.json
 ```
 
-The first start downloads the embedding model (about 30 s); it's cached afterwards.
-`just down` stops everything; data stays in `.data/` until `just clean`.
+The first build downloads the embedding models (about 150 MB) into the image; after that the
+stack starts without network access. `just down` stops everything; data stays in `.data/` until
+`just clean`.
 
 ## API
 
@@ -28,13 +31,13 @@ The first start downloads the embedding model (about 30 s); it's cached afterwar
 | `POST /clients/{id}/documents` | Add a document to a client | 404 unknown client, 422 |
 | `GET /documents/{id}` | Read a document (with its summary, once there is one) | 404, 422 |
 | `GET /search?q=` | Search clients, then documents | 422 |
-| `GET /health`, `GET /health/ready` | Liveness; readiness (Postgres and Meilisearch reachable) | |
+| `GET /health`, `GET /health/ready` | Liveness; readiness (Postgres reachable) | |
 
-Endpoints return 503 when Postgres, or for search Meilisearch, is unreachable. Full schemas,
-limits and examples are in the Swagger UI.
+Endpoints return 503 when Postgres is unreachable. Full schemas, limits and examples are in the
+Swagger UI.
 
-**Search is eventually consistent:** a new client or document becomes searchable within about a
-second, once the background worker has indexed it.
+**Search is consistent immediately:** a client or document is searchable as soon as its `POST`
+returns.
 
 ## Examples
 
@@ -52,7 +55,7 @@ curl -s -X POST localhost:8000/clients -H 'Content-Type: application/json' -d '{
 
 ```json
 {
-  "id": "676eb0f9-2e79-4305-8e54-2d0b94f5cdfb",
+  "id": "d6276f90-1efc-407e-bfc1-aa13e62f2f73",
   "first_name": "John",
   "last_name": "Doe",
   "email": "john.doe@neviswealth.com",
@@ -62,7 +65,7 @@ curl -s -X POST localhost:8000/clients -H 'Content-Type: application/json' -d '{
 ```
 
 ```sh
-curl -s -X POST localhost:8000/clients/676eb0f9-2e79-4305-8e54-2d0b94f5cdfb/documents \
+curl -s -X POST localhost:8000/clients/d6276f90-1efc-407e-bfc1-aa13e62f2f73/documents \
   -H 'Content-Type: application/json' -d '{
   "title": "Utility bill March",
   "content": "Electricity utility bill from Vattenfall for the apartment at 12 Lake Road, Zurich. Billing period March 2026, amount due CHF 84.20."
@@ -71,12 +74,12 @@ curl -s -X POST localhost:8000/clients/676eb0f9-2e79-4305-8e54-2d0b94f5cdfb/docu
 
 ```json
 {
-  "id": "0bf6e465-e718-40fb-b65e-fbe5b081743c",
-  "client_id": "676eb0f9-2e79-4305-8e54-2d0b94f5cdfb",
+  "id": "7ecff0f7-f31b-48f1-8650-0d208e236b98",
+  "client_id": "d6276f90-1efc-407e-bfc1-aa13e62f2f73",
   "title": "Utility bill March",
   "content": "Electricity utility bill from Vattenfall for the apartment at 12 Lake Road, …",
   "summary": null,
-  "created_at": "2026-10-10T14:19:42.049995Z"
+  "created_at": "2026-10-11T05:11:26.581794Z"
 }
 ```
 
@@ -92,19 +95,20 @@ curl -s 'localhost:8000/search?q=NevisWealth&documents_limit=2'
 
 ```json
 [
-  {"type": "client", "client": {"id": "676eb0f9-…", "first_name": "John", "last_name": "Doe",
+  {"type": "client", "client": {"id": "d6276f90-…", "first_name": "John", "last_name": "Doe",
     "email": "john.doe@neviswealth.com", "description": "Prefers sustainable funds; …", "social_links": ["…"]}},
-  {"type": "client", "client": {"id": "f38811a9-…", "first_name": "Anna", "last_name": "Schmidt",
+  {"type": "client", "client": {"id": "d6cdd3c5-…", "first_name": "Anna", "last_name": "Schmidt",
     "email": "anna@weberfamilyoffice.de", "description": "Referred by NevisWealth", "social_links": []}},
-  {"type": "document", "document": {"id": "0bf6e465-…", "title": "Utility bill March", "…": "…"},
+  {"type": "document", "document": {"id": "7ecff0f7-…", "title": "Utility bill March", "…": "…"},
     "matched_text": "Electricity utility bill from Vattenfall for the apartment at 12 Lake Road, …"},
-  {"type": "document", "document": {"id": "55892618-…", "title": "Passport scan", "…": "…"},
+  {"type": "document", "document": {"id": "2aa33ad1-…", "title": "Passport scan", "…": "…"},
     "matched_text": "Scanned copy of the client's Swiss passport, issued 2021, valid until 2031."}
 ]
 ```
 
-Clients come first: keyword matches, then ones containing the text inside a word. `wealth`
-also finds John (`neviswealth`) and Anna, regardless of case and accents.
+Clients come first: whole-word matches, then ones containing the text inside a word, then
+typos. Case and accents don't matter. `wealth` also finds John (inside `neviswealth`) and Anna,
+and so does the typo `neviswelth`.
 
 ### Find documents by meaning: `address proof`
 
@@ -114,9 +118,9 @@ curl -s 'localhost:8000/search?q=address%20proof&documents_limit=2'
 
 ```json
 [
-  {"type": "document", "document": {"id": "55892618-…", "title": "Passport scan", "…": "…"},
+  {"type": "document", "document": {"id": "2aa33ad1-…", "title": "Passport scan", "…": "…"},
     "matched_text": "Scanned copy of the client's Swiss passport, issued 2021, valid until 2031."},
-  {"type": "document", "document": {"id": "0bf6e465-…", "title": "Utility bill March", "…": "…"},
+  {"type": "document", "document": {"id": "7ecff0f7-…", "title": "Utility bill March", "…": "…"},
     "matched_text": "Electricity utility bill from Vattenfall for the apartment at 12 Lake Road, …"}
 ]
 ```
@@ -135,20 +139,27 @@ curl -s -X POST localhost:8000/clients -H 'Content-Type: application/json' \
 
 ## How search works
 
-- **Clients:** Meilisearch keyword search (typo-tolerant, prefix on the last word), plus the
-  experimental `CONTAINS` filter for text inside a word. Keyword matches rank first.
-- **Documents:** content is split into overlapping chunks; each is embedded by Meilisearch's
-  built-in `BAAI/bge-small-en-v1.5` and searched by keyword and meaning together. One result per
-  document, with the chunk that matched.
+- **Clients:** name, email and description are stored lowercased and without accents
+  (`search_text`). Matches containing the query as a whole word come first, then ones containing
+  it inside a word, then typos (`pg_trgm` word similarity of at least 0.5). Queries shorter than
+  three characters match whole words only.
+- **Documents:** content is split into overlapping chunks, each embedded with
+  `BAAI/bge-small-en-v1.5`. The chunks nearest to the query (pgvector) and the documents
+  containing any of its words (Postgres full-text search, English stemming) are merged by
+  reciprocal rank fusion. One result per document, with its closest chunk as `matched_text`.
+  A cross-encoder can rerank the top 20 (`NEVIS_SEARCH_RERANK=true`; off by default, see
+  `decisions.md`).
 - **Limits, not cutoffs:** semantic search always has a "closest" document, so `documents_limit`
   (default 5) bounds the list; there is no relevance score in responses (see `decisions.md`).
-- **Consistency:** writes go to Postgres together with an outbox job; a background worker
-  indexes them, retrying until Meilisearch accepts them. `just reindex` rebuilds the index.
+- **Consistency:** a document's chunks are embedded before its transaction and committed with
+  it, so there is no indexing step to wait for.
 
 ## Summaries (optional, local model only)
 
 Documents get a `summary` only if a locally running model with an OpenAI-compatible API is
-configured; otherwise it stays `null`. With [Ollama](https://ollama.com) on the host:
+configured; otherwise it stays `null`. The `worker` service writes summaries (the api never
+calls the model), so the settings are the worker's. With [Ollama](https://ollama.com) on the
+host:
 
 ```sh
 ollama pull llama3.2
@@ -159,8 +170,9 @@ ENV
 just up
 ```
 
-On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the api container can reach it. The summary
-appears shortly after the document is created: `GET /documents/{id}`.
+On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the worker container can reach it. The
+summary appears shortly after the document is created: `GET /documents/{id}`. Without the
+settings, the worker logs one line and idles (`just worker-logs`).
 
 ## Development
 
@@ -170,10 +182,20 @@ appears shortly after the document is created: `GET /documents/{id}`.
 | `just check` | Ruff lint and format check, mypy (strict) |
 | `just infra`, then `just run` | Infrastructure in Docker, api on the host (to debug it) |
 | `just migration <name>` | Generate a migration from `schema/schema.sql` (and the row models) |
-| `just search-setup`, `just reindex` | Apply index settings; rebuild the index from Postgres |
-| `just logs`, `just down`, `just clean` | Follow logs; stop; delete dev data |
+| `just reembed [--all]` | Embed documents that have no chunks yet (`--all`: every document) |
+| `just logs`, `just worker-logs` | Follow the logs of the stack; of the summary worker |
+| `just down`, `just clean` | Stop; delete dev data |
 
 Needs [uv](https://docs.astral.sh/uv/) for the host commands (`uv sync`). Configuration is
 read from `NEVIS_*` environment variables; `.env.example` lists the compose overrides.
+
+Dev data from before search moved into Postgres needs the extensions (created only for a new
+data directory), then the migrations and embeddings:
+
+```sh
+for db in nevis atlas_dev; do docker compose exec db psql -U nevis -d $db \
+  -c 'CREATE EXTENSION IF NOT EXISTS vector' -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm'; done
+just migrate && just reembed
+```
 
 Not deployed anywhere.
