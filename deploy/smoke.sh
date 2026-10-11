@@ -102,6 +102,11 @@ expect 201 "${auth[@]}" -H 'Content-Type: application/json' \
 	|| fail "the new client isn't found by search"
 echo "ok  search finds the new client"
 
+# The re-embedding tool (`just reembed` in development) runs from the release image too.
+"${compose[@]}" run --rm --no-deps api python -m nevis.search.reembed > "$work/reembed.log" 2>&1 \
+	|| { cat "$work/reembed.log"; fail "reembed failed"; }
+echo "ok  reembed runs from the release image"
+
 redirect=$(curl --silent --output /dev/null --write-out '%{http_code} %{redirect_url}' "http://$HOST/health")
 [[ $redirect == "308 https://$HOST/health" ]] || fail "expected a 308 to https, got: $redirect"
 echo "ok  308  http -> https"

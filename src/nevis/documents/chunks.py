@@ -3,14 +3,43 @@
 import uuid
 from dataclasses import dataclass
 
-from nevis.db import DbConnection
+from nevis.db import DbConnection, DbPool
 from nevis.documents.chunking import chunk_text
-from nevis.embeddings import Embedder
+from nevis.embeddings import EMBEDDING_MODEL, Embedder
 
 INSERT_CHUNKS = """
     INSERT INTO document_chunks (document_id, ordinal, text, embedding)
     VALUES ($1, $2, $3, $4)
 """
+# A database without the row (new, or older than the table) gets the current model: whatever
+# chunks it has were embedded by the code running now or before the model was ever changed.
+RECORD_EMBEDDING_MODEL = "INSERT INTO embedding_model (name) VALUES ($1) ON CONFLICT DO NOTHING"
+SELECT_EMBEDDING_MODEL = "SELECT name FROM embedding_model"
+SET_EMBEDDING_MODEL = """
+    INSERT INTO embedding_model (name) VALUES ($1)
+    ON CONFLICT (singleton) DO UPDATE SET name = excluded.name
+"""
+
+
+class EmbeddingModelMismatchError(Exception):
+    """The stored chunk vectors come from another embedding model than the one running."""
+
+
+async def check_embedding_model(pool: DbPool) -> None:
+    """Raise unless the stored vectors come from EMBEDDING_MODEL (recorded on first use)."""
+    await pool.execute(RECORD_EMBEDDING_MODEL, EMBEDDING_MODEL)
+    stored = await pool.fetchval(SELECT_EMBEDDING_MODEL)
+    if stored != EMBEDDING_MODEL:
+        msg = (
+            f"the stored vectors come from {stored}, but this code embeds with {EMBEDDING_MODEL}: "
+            "re-embed every document first (just reembed --all)"
+        )
+        raise EmbeddingModelMismatchError(msg)
+
+
+async def set_embedding_model(pool: DbPool) -> None:
+    """Record EMBEDDING_MODEL as the model of the stored vectors (after re-embedding them all)."""
+    await pool.execute(SET_EMBEDDING_MODEL, EMBEDDING_MODEL)
 
 
 @dataclass(frozen=True)

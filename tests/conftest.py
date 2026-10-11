@@ -118,8 +118,12 @@ async def client(
     async def create_fake_embedder(_: Settings) -> NonCallableMagicMock:
         return fake_embedder
 
+    async def skip_embedding_model_check(_: NonCallableMagicMock) -> None:
+        return None
+
     monkeypatch.setattr("nevis.main.create_pool", create_fake_pool)
     monkeypatch.setattr("nevis.main.create_embedder", create_fake_embedder)
+    monkeypatch.setattr("nevis.main.check_embedding_model", skip_embedding_model_check)
     _disable_reranker(monkeypatch)
     async with _serve(create_app(settings)) as test_client:
         yield test_client

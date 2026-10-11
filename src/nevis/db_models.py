@@ -34,3 +34,9 @@ class DocumentChunk(BaseModel):
     ordinal: int
     text: str
     embedding: list[float]
+
+
+class EmbeddingModel(BaseModel):
+
+    singleton: bool
+    name: str

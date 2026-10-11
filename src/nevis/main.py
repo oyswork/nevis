@@ -12,6 +12,7 @@ from nevis.db import (
     database_timeout_handler,
     database_unavailable_handler,
 )
+from nevis.documents.chunks import check_embedding_model
 from nevis.documents.router import router as documents_router
 from nevis.embeddings import create_embedder, create_reranker
 from nevis.search.router import router as search_router
@@ -27,10 +28,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         embedder = await create_embedder(resolved_settings)
         reranker = await create_reranker(resolved_settings)
         pool = await create_pool(resolved_settings)
-        app.state.pool = pool
-        app.state.embedder = embedder
-        app.state.reranker = reranker
         try:
+            # Vectors from another model would make search return nonsense: refuse to serve.
+            await check_embedding_model(pool)
+            app.state.pool = pool
+            app.state.embedder = embedder
+            app.state.reranker = reranker
             yield
         finally:
             await pool.close()

@@ -53,7 +53,7 @@ CREATE INDEX ix_documents_tsv ON documents USING gin (tsv);
 -- and (IS NULL OR < now()) can't use an index range anyway.
 CREATE INDEX ix_documents_unsummarized ON documents (created_at) WHERE summary IS NULL;
 
--- Overlapping chunks of a document's content (nevis.search.chunking), each embedded with its
+-- Overlapping chunks of a document's content (nevis.documents.chunking), each embedded with its
 -- document's title. Written in the same transaction as the document. 384 is the output size of
 -- the embedding model (nevis.embeddings.EMBEDDING_DIMENSIONS).
 CREATE TABLE document_chunks (
@@ -67,3 +67,13 @@ CREATE TABLE document_chunks (
 
 -- Nearest-neighbour search by cosine distance.
 CREATE INDEX ix_document_chunks_embedding ON document_chunks USING hnsw (embedding vector_cosine_ops);
+
+-- Which embedding model produced the vectors in document_chunks (nevis.embeddings.EMBEDDING_MODEL):
+-- vectors from two models can't be compared. One row, recorded by the api's first start and
+-- replaced by `just reembed --all`; the api refuses to start while it names another model.
+CREATE TABLE embedding_model (
+    singleton boolean NOT NULL DEFAULT true,
+    name text NOT NULL,
+    PRIMARY KEY (singleton),
+    CONSTRAINT ck_embedding_model_singleton CHECK (singleton)
+);

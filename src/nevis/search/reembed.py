@@ -2,6 +2,8 @@
 
 - Documents without chunks (rows from before the search tables existed) are chunked and
   embedded; with ``--all`` every document is, replacing its chunks (after changing the model).
+  Without ``--all`` the stored vectors must come from the current model; ``--all`` records it
+  as theirs once every document is done (the api refuses to start until then).
 - ``clients.search_text`` is recomputed for every client (cheap).
 
 Idempotent: a document's chunks are replaced in one transaction, so search never sees it half done.
@@ -18,7 +20,12 @@ import asyncpg
 
 from nevis.config import Settings
 from nevis.db import DbPool, create_pool
-from nevis.documents.chunks import embed_document, insert_chunks
+from nevis.documents.chunks import (
+    check_embedding_model,
+    embed_document,
+    insert_chunks,
+    set_embedding_model,
+)
 from nevis.embeddings import Embedder, create_embedder
 from nevis.text import client_search_text
 
@@ -58,6 +65,8 @@ class ReembedCounts:
 async def reembed(
     pool: DbPool, embedder: Embedder, *, all_documents: bool = False
 ) -> ReembedCounts:
+    if not all_documents:
+        await check_embedding_model(pool)  # new chunks must match the stored ones
     documents = 0
     chunk_count = 0
     last_id = NIL_UUID
@@ -72,6 +81,8 @@ async def reembed(
                 documents += 1
                 chunk_count += written
         logger.info("Documents: %d written so far (page ending at %s)", documents, last_id)
+    if all_documents:
+        await set_embedding_model(pool)
     return ReembedCounts(documents, chunk_count, await _refresh_search_text(pool))
 
 
