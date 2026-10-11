@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Self
 
 from pydantic import HttpUrl, PostgresDsn, SecretStr, field_validator, model_validator
@@ -18,7 +19,32 @@ class SearchSettings(BaseSettings):
     meilisearch_api_key: SecretStr
 
 
-class Settings(SearchSettings):
+class EmbeddingSettings(BaseSettings):
+    """Local embedding and reranking models, read from ``NEVIS_*`` environment variables.
+
+    On its own for ``python -m nevis.embeddings`` (the image build), which needs no database.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="NEVIS_", frozen=True, extra="ignore")
+
+    # Where fastembed keeps the models. Unset: its default (a temp directory).
+    model_cache_dir: Path | None = None
+    # The cross-encoder reranker is optional; its model is loaded only when this is on.
+    search_rerank: bool = False
+
+    @field_validator("model_cache_dir", mode="before")
+    @classmethod
+    def _empty_cache_dir_means_unset(cls, value: object) -> object:
+        # docker-compose passes variables that aren't set in .env through as empty strings.
+        return None if value == "" else value
+
+    @field_validator("search_rerank", mode="before")
+    @classmethod
+    def _empty_rerank_means_off(cls, value: object) -> object:
+        return False if value == "" else value
+
+
+class Settings(SearchSettings, EmbeddingSettings):
     """Runtime configuration of the app, read from ``NEVIS_*`` environment variables."""
 
     database_url: PostgresDsn
@@ -29,7 +55,7 @@ class Settings(SearchSettings):
 
     @field_validator("summary_api_url", "summary_model", mode="before")
     @classmethod
-    def _empty_means_unset(cls, value: object) -> object:
+    def _empty_summary_means_unset(cls, value: object) -> object:
         # docker-compose passes variables that aren't set in .env through as empty strings.
         return None if value == "" else value
 

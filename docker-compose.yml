@@ -106,6 +106,8 @@ services:
       # Optional local summarization model (see .env.example); empty: summaries stay null.
       NEVIS_SUMMARY_API_URL: ${NEVIS_SUMMARY_API_URL:-}
       NEVIS_SUMMARY_MODEL: ${NEVIS_SUMMARY_MODEL:-}
+      # Optional cross-encoder reranking of document search (see .env.example); empty: off.
+      NEVIS_SEARCH_RERANK: ${NEVIS_SEARCH_RERANK:-}
     # Lets the api reach a model running on the host (e.g. Ollama) on Linux as on macOS.
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -13,6 +13,7 @@ from nevis.db import (
     database_unavailable_handler,
 )
 from nevis.documents.router import router as documents_router
+from nevis.embeddings import create_embedder, create_reranker
 from nevis.outbox.handlers import create_outbox_worker
 from nevis.search.client import (
     SEARCH_UNAVAILABLE_ERRORS,
@@ -29,12 +30,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        # Models first: loading them is the slowest step and can fail, with nothing open yet.
+        embedder = await create_embedder(resolved_settings)
+        reranker = await create_reranker(resolved_settings)
         pool = await create_pool(resolved_settings)
         search_client = create_search_client(resolved_settings)
         summarizer = create_summarizer(resolved_settings)
         app.state.pool = pool
         app.state.search_client = search_client
         app.state.summarizer = summarizer
+        app.state.embedder = embedder
+        app.state.reranker = reranker
         outbox_worker = create_outbox_worker(pool, search_client, summarizer)
         outbox_worker.start()
         try:

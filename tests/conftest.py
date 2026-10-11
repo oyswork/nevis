@@ -7,13 +7,15 @@ from urllib.parse import urlsplit
 
 import asyncpg
 import pytest
+import pytest_asyncio
 from fastapi import FastAPI
 from httpx2 import ASGITransport, AsyncClient
 from meilisearch_python_sdk import AsyncClient as SearchClient
 from meilisearch_python_sdk.errors import MeilisearchApiError, MeilisearchCommunicationError
 from pydantic import HttpUrl, PostgresDsn, SecretStr
 
-from nevis.config import Settings
+from nevis.config import EmbeddingSettings, Settings
+from nevis.embeddings import Embedder, create_embedder
 from nevis.main import create_app
 from nevis.outbox.worker import OutboxWorker
 from nevis.search.client import create_search_client
@@ -138,9 +140,17 @@ def fake_search_client() -> NonCallableMagicMock:
 
 
 @pytest.fixture
+def fake_embedder() -> NonCallableMagicMock:
+    """The embedder behind `client`; configure its methods per test."""
+    embedder: NonCallableMagicMock = create_autospec(Embedder, instance=True)
+    return embedder
+
+
+@pytest.fixture
 async def client(
     settings: Settings,
     fake_pool: NonCallableMagicMock,
+    fake_embedder: NonCallableMagicMock,
     fake_search_client: NonCallableMagicMock,
     fake_outbox_worker: NonCallableMagicMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -153,7 +163,12 @@ async def client(
     def create_fake_search_client(_: Settings) -> NonCallableMagicMock:
         return fake_search_client
 
+    async def create_fake_embedder(_: Settings) -> NonCallableMagicMock:
+        return fake_embedder
+
     monkeypatch.setattr("nevis.main.create_pool", create_fake_pool)
+    monkeypatch.setattr("nevis.main.create_embedder", create_fake_embedder)
+    _disable_reranker(monkeypatch)
     monkeypatch.setattr("nevis.main.create_search_client", create_fake_search_client)
     _replace_outbox_worker(monkeypatch, fake_outbox_worker)
     async with _serve(create_app(settings)) as test_client:
@@ -169,15 +184,30 @@ def db_settings() -> Settings:
     )
 
 
+# One real model for the whole session: loading it takes seconds. It binds to no event loop.
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def real_embedder() -> Embedder:
+    return await create_embedder(EmbeddingSettings())
+
+
 @pytest.fixture
 async def db_client(
-    db_settings: Settings, fake_outbox_worker: NonCallableMagicMock, monkeypatch: pytest.MonkeyPatch
+    db_settings: Settings,
+    real_embedder: Embedder,
+    fake_outbox_worker: NonCallableMagicMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncGenerator[AsyncClient]:
     """App client on the real test infrastructure, emptied first. Jobs run only when a test
     runs them."""
     await _execute(str(db_settings.database_url), "TRUNCATE clients, outbox CASCADE")
     await _empty_search_indexes(db_settings)
     _replace_outbox_worker(monkeypatch, fake_outbox_worker)
+
+    async def create_session_embedder(_: Settings) -> Embedder:
+        return real_embedder
+
+    monkeypatch.setattr("nevis.main.create_embedder", create_session_embedder)
+    _disable_reranker(monkeypatch)
     async with _serve(create_app(db_settings)) as test_client:
         yield test_client
 
@@ -194,6 +224,13 @@ async def summarizing_client(
     )
     async with _serve(create_app(configured)) as test_client:
         yield test_client
+
+
+def _disable_reranker(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def create_no_reranker(_: Settings) -> None:
+        return None
+
+    monkeypatch.setattr("nevis.main.create_reranker", create_no_reranker)
 
 
 def _replace_outbox_worker(monkeypatch: pytest.MonkeyPatch, worker: NonCallableMagicMock) -> None:
