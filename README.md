@@ -24,17 +24,20 @@ stack starts without network access. `just down` stops everything; data stays in
 
 ## API
 
-| Method and path | Does | Errors |
-|---|---|---|
-| `POST /clients` | Create a client | 409 email taken (case-insensitive), 422 |
-| `GET /clients/{id}` | Read a client | 404, 422 |
-| `POST /clients/{id}/documents` | Add a document to a client | 404 unknown client, 422 |
-| `GET /documents/{id}` | Read a document (with its summary, once there is one) | 404, 422 |
-| `GET /search?q=` | Search clients, then documents | 422 |
-| `GET /health`, `GET /health/ready` | Liveness; readiness (Postgres reachable) | |
+| Method and path | Does | Success | Errors |
+|---|---|---|---|
+| `POST /clients` | Create a client | 201 | 409 email taken (case-insensitive), 422 |
+| `GET /clients/{id}` | Read a client | 200 | 404, 422 |
+| `POST /clients/{id}/documents` | Add a document to a client | 201 | 404 unknown client, 422 |
+| `GET /documents/{id}` | Read a document (with its summary, once there is one) | 200 | 404, 422 |
+| `GET /search?q=` | Search clients, then documents | 200 | 422 |
+| `GET /health`, `GET /health/ready` | Liveness; readiness (Postgres reachable) | 200 | 503 (ready) |
 
-Endpoints return 503 when Postgres is unreachable. Full schemas, limits and examples are in the
-Swagger UI.
+`GET /search` takes `q` (1–200 characters), `clients_limit` (0–50, default 10) and
+`documents_limit` (0–20, default 5). It returns clients first, then documents; a document hit
+carries the document without its content (read that with `GET /documents/{id}`) and the chunk
+that matched best. Endpoints return 503 when Postgres is unreachable; errors other than 422 have
+the body `{"detail": "<message>"}`. Full schemas and examples are in the Swagger UI.
 
 **Search is consistent immediately:** a client or document is searchable as soon as its `POST`
 returns.
@@ -99,7 +102,8 @@ curl -s 'localhost:8000/search?q=NevisWealth&documents_limit=2'
     "email": "john.doe@neviswealth.com", "description": "Prefers sustainable funds; …", "social_links": ["…"]}},
   {"type": "client", "client": {"id": "d6cdd3c5-…", "first_name": "Anna", "last_name": "Schmidt",
     "email": "anna@weberfamilyoffice.de", "description": "Referred by NevisWealth", "social_links": []}},
-  {"type": "document", "document": {"id": "7ecff0f7-…", "title": "Utility bill March", "…": "…"},
+  {"type": "document", "document": {"id": "7ecff0f7-…", "client_id": "d6276f90-…",
+    "title": "Utility bill March", "summary": null, "created_at": "2026-10-11T05:11:26.581794Z"},
     "matched_text": "Electricity utility bill from Vattenfall for the apartment at 12 Lake Road, …"},
   {"type": "document", "document": {"id": "2aa33ad1-…", "title": "Passport scan", "…": "…"},
     "matched_text": "Scanned copy of the client's Swiss passport, issued 2021, valid until 2031."}
@@ -145,8 +149,8 @@ curl -s -X POST localhost:8000/clients -H 'Content-Type: application/json' \
   three characters match whole words only.
 - **Documents:** content is split into overlapping chunks, each embedded with
   `BAAI/bge-small-en-v1.5`. The chunks nearest to the query (pgvector) and the documents
-  containing any of its words (Postgres full-text search, English stemming) are merged by
-  reciprocal rank fusion. One result per document, with its closest chunk as `matched_text`.
+  containing any of its words (Postgres full-text search, English stemming, ranked relative to
+  document length) are merged by reciprocal rank fusion. One result per document, with its closest chunk as `matched_text`.
   A cross-encoder can rerank the top 20 (`NEVIS_SEARCH_RERANK=true`; off by default, see
   `decisions.md`).
 - **Limits, not cutoffs:** semantic search always has a "closest" document, so `documents_limit`
@@ -172,7 +176,7 @@ just up
 
 On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the worker container can reach it. The
 summary appears shortly after the document is created: `GET /documents/{id}`. Without the
-settings, the worker logs one line and idles (`just worker-logs`).
+settings, the worker logs one line and idles (`just logs worker`).
 
 ## Development
 
@@ -180,24 +184,23 @@ settings, the worker logs one line and idles (`just worker-logs`).
 |---|---|
 | `just test [pytest args]` | Full test suite in Docker (separate, in-memory stack; 80% coverage gate) |
 | `just exercise [--model ID] [--keep]` | Every endpoint and the summary worker end to end, on a throwaway stack with a local model (default LM Studio on `127.0.0.1:1234`; see `scripts/exercise.sh`) |
+| `just relevance` | Search relevance on a throwaway stack: 58 labelled queries over 48 documents in five domains, reported as hit@1, hit@3 and MRR (`scripts/relevance.py`) |
 | `just check` | Ruff lint and format check, mypy (strict) |
 | `just infra`, then `just run` | Infrastructure in Docker, api on the host (to debug it) |
 | `just migration <name>` | Generate a migration from `schema/schema.sql` (and the row models) |
-| `just reembed [--all]` | Embed documents that have no chunks yet (`--all`: every document) |
-| `just logs`, `just worker-logs` | Follow the logs of the stack; of the summary worker |
+| `just reembed [--all]` | Embed documents that have no chunks yet (`--all`: every document, after changing the embedding model) |
+| `just logs [service]` | Follow the logs of the stack, or of one service (e.g. `worker`) |
 | `just down`, `just clean` | Stop; delete dev data |
 
 Needs [uv](https://docs.astral.sh/uv/) for the host commands (`uv sync`). Configuration is
 read from `NEVIS_*` environment variables; `.env.example` lists the compose overrides.
 
-Dev data from before search moved into Postgres needs the extensions (created only for a new
-data directory), then the migrations and embeddings:
+The migration history was squashed into one migration before the first deploy. A dev database
+created before that (with 7 applied migrations) is rejected by `just migrate`; recreate it with
+`just clean` and `just up`.
 
-```sh
-for db in nevis atlas_dev; do docker compose exec db psql -U nevis -d $db \
-  -c 'CREATE EXTENSION IF NOT EXISTS vector' -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm'; done
-just migrate && just reembed
-```
+The api records which embedding model produced the stored vectors and refuses to start when the
+code embeds with another one: after changing `EMBEDDING_MODEL`, run `just reembed --all`.
 
 ## Deployment
 

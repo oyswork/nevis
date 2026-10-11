@@ -14,25 +14,31 @@ Everyday commands are `just` recipes (`just` lists them; see `justfile`).
   services); no local CLI.
 - Whole system in Docker: `just up` → http://localhost:8000/docs. The api and the summary
   worker run the `dev` image stage with `src/` mounted; the api reloads on changes, the worker
-  doesn't (`docker compose restart worker`). `just logs`, `just worker-logs`, `just down`.
+  doesn't (`docker compose restart worker`). `just logs [service]`, `just down`.
 - Infra only, api on the host (to debug it): `just infra`, then `just run` (or your debugger
   with `NEVIS_DATABASE_URL=postgresql://nevis:nevis@localhost:5432/nevis`). On the host the models
   download to fastembed's temp-dir cache on first use (`NEVIS_MODEL_CACHE_DIR` to keep them).
 - Dev data lives in `.data/postgres` (bind mount), so it survives `just down`; `just clean`
   deletes it. `just reembed` embeds documents that have no chunks (`--all`: every document, after
-  a model or chunking change) and refreshes clients' `search_text`.
+  a model or chunking change) and refreshes clients' `search_text`. The `embedding_model` table
+  records which model made the stored vectors; the api refuses to start on a mismatch, and only
+  `reembed --all` updates it.
 - Tests in Docker (80% coverage gate): `just test [pytest args]`. Uses the separate test stack
   (`docker-compose.test.yml`: port 55432, tmpfs) and runs pytest in a `tests` container with the
   repository mounted.
 - Tests on the host: `just test-infra` (re-run after adding a migration), then `uv run pytest`.
   If integration tests are selected and the test database isn't reachable, named `*_test` and
   migrated, pytest aborts before running anything. `uv run pytest -m unit` needs no
-  infrastructure. The URL defaults to localhost:55432 (`NEVIS_TEST_DATABASE_URL`).
+  infrastructure, but it doesn't cover search ranking: the tiers, thresholds and fusion are
+  tested only against Postgres. The URL defaults to localhost:55432 (`NEVIS_TEST_DATABASE_URL`).
 - End to end with real summaries: `just exercise` starts a throwaway stack
   (`docker-compose.exercise.yml`: api on 127.0.0.1:58000, database in memory) whose worker uses a
   local OpenAI-compatible model (default `http://127.0.0.1:1234/v1`, first non-embedding model),
   runs `scripts/exercise.py` against it and removes the stack. `scripts/exercise.py` alone
   targets any api (`--base-url`, `--user` for the deployed server's Basic auth).
+- Search relevance: `just relevance` loads `scripts/relevance_corpus.json` (58 labelled queries,
+  5 domains) into a throwaway stack and prints hit@1, hit@3 and MRR. It reports and doesn't
+  gate; run it before and after any change to search or the models, and quote both.
 - Lint, format check, type check (strict): `just check`; fix with
   `uv run ruff check --fix . && uv run ruff format .`
 - Production smoke test: `just prod-smoke` builds the release images and runs

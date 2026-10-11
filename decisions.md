@@ -44,6 +44,9 @@
 - Forgetting to run `migrate diff` after editing `schema.sql` leaves the migrations behind the
   file, and nothing checks for it automatically yet. Applied migrations are immutable: fixes go
   in a new migration, not an edit.
+- The history was squashed into one migration before the first deploy, dropping the outbox
+  and summary-job steps that were added and removed during development. Databases migrated
+  before that had to be recreated; from the first deploy on, history is only appended.
 
 ## Search: Postgres only, with `pg_trgm` and `pgvector`
 
@@ -55,8 +58,12 @@
   (`word_similarity` of at least 0.5, via the index-assisted `<%`).
 - Documents: chunks with `bge-small-en-v1.5` embeddings in `document_chunks` (HNSW, cosine), and
   a generated `tsvector` over title and content. The nearest 200 chunks (best chunk per document,
-  top 50) and the top 50 full-text matches on any query word are merged by reciprocal rank
-  fusion (k = 60). The top 20 go on, cut to `documents_limit`.
+  top 50) and the top 50 full-text matches on any query word, ranked by `ts_rank_cd` divided by
+  document length, are merged by reciprocal rank fusion (k = 60). The top 20 go on, cut to
+  `documents_limit`. Hits carry the document without its content (up to 100k characters each)
+  and the chunk that matched.
+- `embedding_model` records which model produced the stored vectors. The api refuses to start
+  when it embeds with another one, and only `just reembed --all` updates the record.
 - Writes: `POST` embeds a document's chunks before its transaction, then commits the document
   and its chunks together. Search is consistent immediately: no outbox, worker or reindex.
 - The models run in the api with fastembed (ONNX on the CPU) and are baked into the image.
@@ -74,12 +81,18 @@
   function, and functions are an Atlas Pro feature.
 - Reranker off: on 15 documents it matched plain vector order (18/20 top-1) at 80–220 ms per
   search, and the first spike's "utility bill first for address proof" didn't reproduce.
+- Length-normalized text rank: without it, long documents that repeat a common query word took
+  over the text side as data grew. On the relevance corpus (`just relevance`: 58 queries, 48
+  documents in five domains) plus 1,048 bulk documents, MRR went from 0.60 to 0.62 overall and
+  from 0.43 to 0.53 on finance queries.
+- The model check: vectors from two models can't be compared, and swapping one 384-dimension
+  model for another fails silently otherwise.
 
 **Trade-offs.**
 
 - Relevance is built by hand (tiers, fusion, query sanitizing) rather than configured.
-- Embedding runs in the request, on a two-thread executor shared by all requests: about 1.3 s for
-  a 100k-character document.
+- Embedding runs in the request, on a two-thread executor shared by all requests: 2–3.6 s for a
+  100k-character document (measured on an M4 Pro, 2026-10-11), and searches wait behind it.
 - The models need ~380 MB of memory in the api (batches of 4; the defaults peaked at 1.2 GB) and
   add ~150 MB to the image.
 - No relevance cutoff: neither cross-encoder scores nor cosine similarity separate junk from
@@ -89,8 +102,14 @@
   matched with OR.
 - Full-text search sees raw text, so it's accent-sensitive; vector search covers documents that
   differ only in accents.
-- Embeddings don't know domain links: "address proof" ranks the utility bill 5th–8th among 15
-  documents (2nd among the README's 3).
+- Embeddings don't know domain links, so where "address proof" ranks the utility bill depends on
+  what else is stored: 2nd among the README's 3 documents, 1st in the relevance corpus, but
+  outside the top 20 among 1,102 documents (measured before length normalization).
+- English only. `just relevance` (2026-10-11): MRR 0.68 finance, 0.85 medical, 0.75 legal and
+  0.73 software support, but 0.42 for German and cross-language queries (0.26 where they share
+  no word with the document). Both models and the `english` text configuration are English-only.
+  A 384-dimension multilingual model (`paraphrase-multilingual-MiniLM-L12-v2`) measured German
+  0.47 → 0.73 but English 0.77 → 0.71, vector side only.
 - Documents created before this change aren't found until `just reembed`.
 - Queries under three characters, and very common substrings, scan clients rather than use the
   trigram index; fine at thousands of clients.
@@ -232,3 +251,8 @@ Kept for the record.
   taken before it; backups stay on the server, not off-site.
 - GitHub holds the database password (for the migrations) and a key that can tunnel to Postgres.
 - One shared Basic auth credential, no per-user accounts or audit trail.
+- No advisors or tenants, although the assignment describes a platform for advisors. Scoping
+  clients by advisor later needs an `advisor_id` on clients and chunks, the unique email index
+  made per advisor, and a filter in both searches. Filtering after the global nearest-200 chunk
+  scan would leave a small advisor with few or no vector matches, so the vector side would need
+  pgvector's iterative index scans (`hnsw.iterative_scan`) or a per-advisor index.
