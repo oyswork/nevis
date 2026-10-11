@@ -190,6 +190,8 @@ def candidate(title: str) -> Candidate:
         title=title,
         content=title,
         summary=None,
+        summary_attempts=0,
+        summary_locked_until=None,
         created_at="2026-01-01T00:00:00Z",  # type: ignore[arg-type]  # pydantic parses it
     )
     return Candidate(document=document, matched_text=f"text of {title}")

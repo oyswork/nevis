@@ -7,7 +7,6 @@ from nevis.db import DATABASE_UNAVAILABLE_RESPONSES, PoolDep
 from nevis.documents import repository
 from nevis.documents.schemas import DocumentCreate, DocumentRead
 from nevis.embeddings import EmbedderDep
-from nevis.summaries.client import SummarizerDep
 
 router = APIRouter(tags=["documents"])
 
@@ -27,17 +26,14 @@ async def create_document(
     payload: DocumentCreate,
     pool: PoolDep,
     embedder: EmbedderDep,
-    summarizer: SummarizerDep,
 ) -> DocumentRead:
     """Store a document for the client.
 
-    It becomes searchable shortly after. If a local summarization model is configured, `summary`
+    It becomes searchable shortly after. If the worker has a local summarization model, `summary`
     is filled in later (read it back with GET /documents/{id}); otherwise it stays null.
     """
     try:
-        document = await repository.create_document(
-            pool, embedder, client_id, payload, summarize=summarizer is not None
-        )
+        document = await repository.create_document(pool, embedder, client_id, payload)
     except repository.ClientNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, CLIENT_NOT_FOUND_DETAIL) from exc
     return DocumentRead.model_validate(document)

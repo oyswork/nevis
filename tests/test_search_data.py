@@ -44,6 +44,8 @@ def created_row(client_id: str) -> dict[str, object]:
         "client_id": uuid.UUID(client_id),
         **LONG_DOCUMENT,
         "summary": None,
+        "summary_attempts": 0,
+        "summary_locked_until": None,
         "created_at": datetime.datetime.now(datetime.UTC),
     }
 
@@ -84,6 +86,30 @@ async def test_create_document_checks_the_client_then_embeds_title_prefixed_chun
         [f"{LONG_DOCUMENT['title']}: {chunk}" for chunk in chunks]
     )
     fake_connection.executemany.assert_awaited_once()
+
+
+@pytest.mark.unit
+async def test_create_document_notifies_the_summary_worker_in_its_transaction(
+    client: AsyncClient,
+    fake_pool: NonCallableMagicMock,
+    fake_connection: NonCallableMagicMock,
+    fake_embedder: NonCallableMagicMock,
+) -> None:
+    fake_pool.fetchval.return_value = True
+    fake_embedder.embed_passages.side_effect = _vectors
+    row = created_row(SOME_ID)
+    fake_connection.fetchrow.return_value = row
+
+    await client.post(f"/clients/{SOME_ID}/documents", json=LONG_DOCUMENT)
+
+    fake_connection.execute.assert_any_await(
+        "SELECT pg_notify($1, $2)", "documents_to_summarize", str(row["id"])
+    )
+    fake_connection.transaction.assert_called_once()
+
+
+async def _vectors(texts: list[str]) -> list[list[float]]:
+    return [[0.0] * EMBEDDING_DIMENSIONS for _ in texts]
 
 
 @pytest.mark.unit

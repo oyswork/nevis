@@ -33,6 +33,11 @@ CREATE TABLE documents (
     content text NOT NULL,
     -- Filled in later, and only if a local summarization model is configured.
     summary text,
+    -- Summary worker bookkeeping (nevis.summaries). summary_locked_until is the lease of the
+    -- worker that claimed the document, or the time of the next attempt after a failure; NULL
+    -- when nobody holds it. summary_attempts counts failed attempts, for inspection.
+    summary_attempts integer NOT NULL DEFAULT 0,
+    summary_locked_until timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     -- Full-text search over title and content (not the summary, which may arrive later).
     tsv tsvector NOT NULL GENERATED ALWAYS AS (to_tsvector('english', title || ' ' || content)) STORED,
@@ -42,6 +47,11 @@ CREATE TABLE documents (
 
 CREATE INDEX ix_documents_client_id ON documents (client_id);
 CREATE INDEX ix_documents_tsv ON documents USING gin (tsv);
+
+-- The summary worker's claim query: unsummarized documents, oldest first. Ordered by created_at
+-- rather than indexed on summary_locked_until: the lease test is a cheap filter on a small set,
+-- and (IS NULL OR < now()) can't use an index range anyway.
+CREATE INDEX ix_documents_unsummarized ON documents (created_at) WHERE summary IS NULL;
 
 -- Overlapping chunks of a document's content (nevis.search.chunking), each embedded with its
 -- document's title. Written in the same transaction as the document. 384 is the output size of
@@ -73,7 +83,7 @@ CREATE TABLE outbox (
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (id),
     CONSTRAINT outbox_kind_check
-        CHECK (kind IN ('index_client', 'index_document', 'summarize_document'))
+        CHECK (kind IN ('index_client', 'index_document'))
 );
 
 -- The worker's claim query: pending jobs in order of availability.

@@ -10,6 +10,7 @@ from nevis.embeddings import Embedder
 from nevis.outbox import repository as outbox
 from nevis.outbox.repository import OutboxKind
 from nevis.search.chunks import embed_document, insert_chunks
+from nevis.summaries import repository as summaries
 
 CLIENT_FOREIGN_KEY = "fk_documents_client"
 
@@ -31,11 +32,10 @@ async def create_document(
     embedder: Embedder,
     client_id: uuid.UUID,
     data: DocumentCreate,
-    *,
-    summarize: bool,
 ) -> Document:
-    """Insert the document and, in the same transaction, its embedded chunks and the jobs that
-    index it for Meilisearch and, if `summarize`, summarize it.
+    """Insert the document and, in the same transaction, its embedded chunks, the job that
+    indexes it for Meilisearch and the notification that wakes the summary worker (delivered on
+    commit; without a worker or a model the document just stays unsummarized).
 
     Embedding takes a while (CPU-bound), so it happens first: no connection or transaction is
     held open meanwhile. The client is checked first, so a request for an unknown client doesn't
@@ -53,8 +53,7 @@ async def create_document(
             document = Document(**row)
             await insert_chunks(connection, document.id, chunks)
             await outbox.enqueue(connection, OutboxKind.INDEX_DOCUMENT, document.id)
-            if summarize:
-                await outbox.enqueue(connection, OutboxKind.SUMMARIZE_DOCUMENT, document.id)
+            await summaries.notify_document(connection, document.id)
     except asyncpg.ForeignKeyViolationError as exc:
         if exc.constraint_name == CLIENT_FOREIGN_KEY:
             raise ClientNotFoundError from exc

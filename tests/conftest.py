@@ -223,20 +223,6 @@ async def db_client(
         yield test_client
 
 
-@pytest.fixture
-async def summarizing_client(
-    db_client: AsyncClient, db_settings: Settings
-) -> AsyncGenerator[AsyncClient]:
-    """Like `db_client` (same emptied infrastructure and faked worker), with a summarization
-    model configured. Nothing calls the model: jobs only run when a test runs them."""
-    configured = Settings.model_validate(
-        db_settings.model_dump()
-        | {"summary_api_url": "http://summarizer.invalid/v1", "summary_model": "unused"}
-    )
-    async with _serve(create_app(configured)) as test_client:
-        yield test_client
-
-
 def _disable_reranker(monkeypatch: pytest.MonkeyPatch) -> None:
     async def create_no_reranker(_: Settings) -> None:
         return None

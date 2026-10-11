@@ -4,17 +4,15 @@ Ollama, LM Studio, llama.cpp and vLLM all serve it. There is deliberately no API
 summaries come only from a local model (decisions.md).
 """
 
-from typing import Annotated
-
-from fastapi import Depends, Request
 from httpx2 import AsyncClient
 from pydantic import BaseModel
 
-from nevis.config import Settings
+from nevis.config import SummarySettings
 
 # Fits the context window of small local models; longer documents are summarized from the start.
 CONTENT_MAX_CHARS = 12_000
-# Local models are slow. Must stay under the outbox lease, or a slow job runs twice.
+# Local models are slow. Must stay under the summary worker's lease (nevis.summaries.worker),
+# or a slow summary runs twice.
 REQUEST_TIMEOUT_SECONDS = 90
 SYSTEM_PROMPT = (
     "You summarize documents for a financial advisor. Reply with two or three plain sentences: "
@@ -62,7 +60,7 @@ class LocalSummarizer:
         await self._http_client.aclose()
 
 
-def create_summarizer(settings: Settings) -> LocalSummarizer | None:
+def create_summarizer(settings: SummarySettings) -> LocalSummarizer | None:
     """The configured summarizer, or None: then documents are never summarized."""
     if settings.summary_api_url is None or settings.summary_model is None:
         return None
@@ -70,11 +68,3 @@ def create_summarizer(settings: Settings) -> LocalSummarizer | None:
     base_url = str(settings.summary_api_url).rstrip("/") + "/"
     http_client = AsyncClient(base_url=base_url, timeout=REQUEST_TIMEOUT_SECONDS)
     return LocalSummarizer(http_client, settings.summary_model)
-
-
-def get_summarizer(request: Request) -> LocalSummarizer | None:
-    summarizer: LocalSummarizer | None = request.app.state.summarizer
-    return summarizer
-
-
-SummarizerDep = Annotated[LocalSummarizer | None, Depends(get_summarizer)]

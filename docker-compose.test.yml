@@ -45,6 +45,10 @@ services:
   api:
     profiles: [app]
 
+  # Tests run the worker in-process; keep the service out of the test stack.
+  worker:
+    profiles: [worker]
+
   # Runs pytest against the repository mounted from the host: `just test [pytest args]`.
   tests:
     build:

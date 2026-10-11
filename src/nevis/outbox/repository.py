@@ -11,7 +11,6 @@ class OutboxKind(StrEnum):
 
     INDEX_CLIENT = "index_client"
     INDEX_DOCUMENT = "index_document"
-    SUMMARIZE_DOCUMENT = "summarize_document"
 
 
 INSERT_JOB = "INSERT INTO outbox (kind, entity_id) VALUES ($1, $2)"

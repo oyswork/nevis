@@ -6,7 +6,7 @@ from fastapi import Depends, Request, status
 from fastapi.responses import JSONResponse
 from pgvector import Vector
 
-from nevis.config import Settings
+from nevis.config import DatabaseSettings
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ async def register_vector_codec(connection: asyncpg.Connection[asyncpg.Record]) 
         raise RuntimeError(msg) from exc
 
 
-async def create_pool(settings: Settings) -> DbPool:
+async def create_pool(settings: DatabaseSettings) -> DbPool:
     # min_size=0 opens connections on first use, so the app can start before the database is up.
     return await asyncpg.create_pool(
         str(settings.database_url),

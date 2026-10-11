@@ -1,16 +1,12 @@
 import json
-import uuid
-from unittest.mock import NonCallableMagicMock, create_autospec
 
 import httpx2
 import pytest
 from httpx2 import AsyncClient
 from pydantic import HttpUrl, PostgresDsn, SecretStr, ValidationError
 
-from nevis.config import Settings
-from nevis.db import DbPool
+from nevis.config import Settings, SummarySettings
 from nevis.summaries.client import CONTENT_MAX_CHARS, LocalSummarizer, create_summarizer
-from nevis.summaries.jobs import summarize_document
 
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
 DOCUMENT = {"title": "Utility bill", "content": "Electricity bill from Vattenfall, CHF 84.20."}
@@ -63,8 +59,18 @@ async def test_summarizer_raises_when_the_model_gives_no_summary(response: httpx
 
 
 @pytest.mark.unit
-def test_summarizer_is_off_unless_configured(settings: Settings) -> None:
-    assert create_summarizer(settings) is None
+def test_summarizer_is_off_unless_configured() -> None:
+    assert create_summarizer(SummarySettings()) is None
+
+
+@pytest.mark.unit
+async def test_summarizer_is_created_from_the_summary_settings() -> None:
+    settings = SummarySettings(summary_api_url=HttpUrl("http://ollama:11434/v1"), summary_model="m")
+
+    summarizer = create_summarizer(settings)
+
+    assert summarizer is not None
+    await summarizer.aclose()
 
 
 @pytest.mark.unit
@@ -73,13 +79,24 @@ def test_summary_settings_treat_empty_values_as_unset(monkeypatch: pytest.Monkey
     monkeypatch.setenv("NEVIS_SUMMARY_API_URL", "")
     monkeypatch.setenv("NEVIS_SUMMARY_MODEL", "")
 
+    settings = SummarySettings()
+
+    assert (settings.summary_api_url, settings.summary_model) == (None, None)
+
+
+@pytest.mark.unit
+def test_api_settings_ignore_a_half_set_summary_pair(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Only the worker uses the summary settings; they must not be able to crash the api.
+    monkeypatch.setenv("NEVIS_SUMMARY_MODEL", "llama3.2")
+    monkeypatch.delenv("NEVIS_SUMMARY_API_URL", raising=False)
+
     settings = Settings(
         database_url=PostgresDsn("postgresql://u@db/nevis"),
         meilisearch_url=HttpUrl("http://meilisearch:7700"),
         meilisearch_api_key=SecretStr("a-key-of-at-least-16-bytes"),
     )
 
-    assert (settings.summary_api_url, settings.summary_model) == (None, None)
+    assert not hasattr(settings, "summary_model")
 
 
 @pytest.mark.unit
@@ -87,56 +104,6 @@ def test_summary_settings_treat_empty_values_as_unset(monkeypatch: pytest.Monkey
     "update",
     [{"summary_api_url": "http://ollama:11434/v1"}, {"summary_model": "llama3.2"}],
 )
-def test_summary_settings_need_both_url_and_model(
-    settings: Settings, update: dict[str, str]
-) -> None:
+def test_summary_settings_need_both_url_and_model(update: dict[str, str]) -> None:
     with pytest.raises(ValidationError, match="NEVIS_SUMMARY_API_URL and NEVIS_SUMMARY_MODEL"):
-        Settings.model_validate(settings.model_dump() | update)
-
-
-async def summarize_jobs(pool: DbPool) -> int:
-    count: int = await pool.fetchval(
-        "SELECT count(*) FROM outbox WHERE kind = 'summarize_document'"
-    )
-    return count
-
-
-async def create_document(client: AsyncClient) -> str:
-    client_id = (await client.post("/clients", json=CLIENT)).json()["id"]
-    response = await client.post(f"/clients/{client_id}/documents", json=DOCUMENT)
-    document_id: str = response.json()["id"]
-    return document_id
-
-
-@pytest.mark.integration
-async def test_no_summary_job_without_a_configured_model(
-    db_client: AsyncClient, db_pool: DbPool
-) -> None:
-    await create_document(db_client)
-
-    assert await summarize_jobs(db_pool) == 0
-
-
-@pytest.mark.integration
-async def test_summary_job_is_enqueued_when_a_model_is_configured(
-    summarizing_client: AsyncClient, db_pool: DbPool
-) -> None:
-    await create_document(summarizing_client)
-
-    assert await summarize_jobs(db_pool) == 1
-
-
-@pytest.mark.integration
-async def test_summary_job_stores_the_summary_once(db_client: AsyncClient, db_pool: DbPool) -> None:
-    document_id = await create_document(db_client)
-    summarizer: NonCallableMagicMock = create_autospec(LocalSummarizer, instance=True)
-    summarizer.summarize.return_value = "An electricity bill."
-
-    await summarize_document(db_pool, summarizer, uuid.UUID(document_id))
-    summarizer.summarize.return_value = "A different summary."
-    await summarize_document(db_pool, summarizer, uuid.UUID(document_id))  # the job ran twice
-    await summarize_document(db_pool, summarizer, uuid.uuid4())  # document gone: nothing to do
-
-    summarizer.summarize.assert_called_once_with(DOCUMENT["title"], DOCUMENT["content"])
-    document = (await db_client.get(f"/documents/{document_id}")).json()
-    assert document["summary"] == "An electricity bill."
+        SummarySettings.model_validate(update)

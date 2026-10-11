@@ -22,13 +22,14 @@ dev_meilisearch_key := env("MEILI_MASTER_KEY", "nevis-dev-master-key")
 help:
     @just --list --unsorted
 
-# Run the whole system in Docker (db, Meilisearch, their setup, api with auto-reload) on :8000
+# Run the whole system in Docker (db, Meilisearch, their setup, api with auto-reload, summary worker) on :8000
 [group("run")]
 up:
     {{ compose }} up --build --detach --wait
     @echo "API: http://localhost:8000/docs  (logs: just logs)"
 
 # Run only the infrastructure (db, migrations, Meilisearch, index setup) in Docker; then `just run`
+# (no summary worker: start it with `docker compose up --detach worker`)
 [group("run")]
 infra:
     {{ compose }} stop api
@@ -42,6 +43,11 @@ run: infra
     NEVIS_DATABASE_URL={{ dev_database_url }} NEVIS_MEILISEARCH_URL={{ dev_meilisearch_url }} \
     NEVIS_MEILISEARCH_API_KEY={{ dev_meilisearch_key }} \
     uv run uvicorn --factory nevis.main:create_app --reload
+
+# Follow the logs of the summary worker
+[group("run")]
+worker-logs:
+    {{ compose }} logs --follow worker
 
 # Follow the logs of the dev stack (all services, or the given ones)
 [group("run")]

@@ -103,14 +103,8 @@ services:
     environment:
       <<: *search-env
       NEVIS_DATABASE_URL: &database-url postgresql://${POSTGRES_USER:-nevis}:${POSTGRES_PASSWORD:-nevis}@db:5432/${POSTGRES_DB:-nevis}
-      # Optional local summarization model (see .env.example); empty: summaries stay null.
-      NEVIS_SUMMARY_API_URL: ${NEVIS_SUMMARY_API_URL:-}
-      NEVIS_SUMMARY_MODEL: ${NEVIS_SUMMARY_MODEL:-}
       # Optional cross-encoder reranking of document search (see .env.example); empty: off.
       NEVIS_SEARCH_RERANK: ${NEVIS_SEARCH_RERANK:-}
-    # Lets the api reach a model running on the host (e.g. Ollama) on Linux as on macOS.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     depends_on:
@@ -123,6 +117,31 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # Summary worker: the same dev image, without the api. It summarizes documents with the local
+  # model (see .env.example) and, with none configured, logs that and idles. `just worker-logs`.
+  # It doesn't auto-reload: after editing src/nevis/summaries, `docker compose restart worker`.
+  worker:
+    build:
+      context: .
+      target: dev
+    command: ["python", "-m", "nevis.summaries.worker"]
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      NEVIS_DATABASE_URL: *database-url
+      # Optional local summarization model (see .env.example); empty: summaries stay null.
+      NEVIS_SUMMARY_API_URL: ${NEVIS_SUMMARY_API_URL:-}
+      NEVIS_SUMMARY_MODEL: ${NEVIS_SUMMARY_MODEL:-}
+    # Lets the worker reach a model running on the host (e.g. Ollama) on Linux as on macOS.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   # Tool, not part of the stack: empties the search indexes and enqueues an index job for every
   # client and document (nevis.search.reindex); the api's worker refills them.  `just reindex`

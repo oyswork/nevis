@@ -23,6 +23,8 @@ class Document(BaseModel):
     title: str = Field(max_length=200)
     content: str
     summary: str | None
+    summary_attempts: int
+    summary_locked_until: AwareDatetime | None
     created_at: AwareDatetime
 
 
