@@ -46,3 +46,13 @@ class DocumentRead(BaseModel):
     # Null until summarized, and always null without a local summarization model.
     summary: str | None
     created_at: datetime.datetime
+
+
+class DocumentPreview(BaseModel):
+    """A document without its content, as search lists it: GET /documents/{id} has the content."""
+
+    id: uuid.UUID
+    client_id: uuid.UUID
+    title: str
+    summary: str | None
+    created_at: datetime.datetime

@@ -1,0 +1,824 @@
+{
+  "domains": [
+    {
+      "name": "finance",
+      "client": {
+        "first_name": "Lukas",
+        "last_name": "Brandt",
+        "email": "lukas.brandt@review.example"
+      },
+      "documents": [
+        {
+          "title": "EnBW electricity invoice October 2025",
+          "content": "EnBW Energie Baden-Württemberg AG. Invoice no. 2025-10-448812. Customer: Lukas Brandt, Seefeldstrasse 41, 8008 Zürich. Supply point ID CH1009801234500000000000000123456. Billing period 01.09.2025 – 30.09.2025. Meter reading start 18 442 kWh, end 18 731 kWh, consumption 289 kWh at 0.27 CHF per kWh. Base fee 9.50 CHF. Network usage 21.30 CHF. VAT 8.1 %. Total amount due 113.84 CHF, payable by 31.10.2025 via QR-bill. Thank you for choosing green power from hydro sources."
+        },
+        {
+          "title": "Copy of Swiss passport",
+          "content": "Swiss Confederation. Type P. Code CHE. Passport No. X4729185. Surname: Brandt. Given names: Lukas Matthias. Nationality: Swiss. Date of birth: 14 03 1979. Sex: M. Place of origin: Winterthur ZH. Date of issue: 02 05 2021. Date of expiry: 01 05 2031. Authority: fedpol. Machine readable zone: P<CHEBRANDT<<LUKAS<MATTHIAS<<<<<<<<<<<<<<<<<< X4729185<7CHE7903148M3105012<<<<<<<<<<<<<<02. Holder signature on page 2. Copy certified by relationship manager."
+        },
+        {
+          "title": "Form 1040 federal filing 2024",
+          "content": "U.S. Individual Income Tax Return 2024, filing status married filing jointly. Wages, salaries, tips (W-2): 184,220 USD. Taxable interest 2,310 USD. Qualified dividends 6,870 USD. Capital gain from Schedule D 12,400 USD. Standard deduction 29,200 USD. Taxable income 176,600 USD. Total tax 31,442 USD. Federal income tax withheld 34,900 USD. Overpaid amount 3,458 USD to be refunded by direct deposit. Foreign tax credit Form 1116 attached for Swiss withholding on dividends. Prepared by CPA, signed electronically."
+        },
+        {
+          "title": "UBS private account statement August 2025",
+          "content": "UBS Switzerland AG. Private account CH93 0023 3233 1234 5678 9. Holder: L. Brandt. Statement 01.08.2025 – 31.08.2025. Opening balance 24,118.40 CHF. 25.08 Credit: employer Roche Diagnostics, monthly pay 11,940.00. 01.08 Debit: standing order Zürcher Kantonalbank mortgage interest 1,870.00. 03.08 Debit: Migros 142.35. 12.08 Debit: SBB GA travelcard 340.00. 19.08 Debit: Swisscom 89.90. 28.08 Transfer to savings 3,000.00. Closing balance 29,674.15 CHF. Interest rate 0.05 %."
+        },
+        {
+          "title": "Investment policy statement – balanced mandate",
+          "content": "Objective: long-term capital growth with moderate volatility over a 15-year horizon. Risk profile: balanced (score 4 of 7). Strategic asset allocation: 50 % equities (of which 30 % Swiss, 70 % global), 35 % fixed income in CHF investment-grade bonds, 10 % real estate funds, 5 % cash. Tactical bands of ±5 percentage points. Rebalancing quarterly or when a band is breached. Exclusions: tobacco, controversial weapons. Benchmark: 50 % MSCI ACWI, 35 % SBI AAA-BBB, 15 % SXI Real Estate. Reviewed annually with the client."
+        },
+        {
+          "title": "Mortgage offer Zürcher Kantonalbank",
+          "content": "Zürcher Kantonalbank offers a fixed-rate mortgage for the purchase of the single-family house at Rebbergstrasse 7, 8706 Meilen. Purchase price 1,850,000 CHF. Financing: 1,200,000 CHF (loan-to-value 64.9 %). First tranche 800,000 CHF fixed for 10 years at 1.62 % p.a., second tranche 400,000 CHF SARON-based with margin 0.85 %. Amortisation of the second tranche to 66 % within 15 years via pillar 3a. Affordability calculated at an imputed rate of 5 %. Offer valid until 30.11.2025."
+        },
+        {
+          "title": "Pension fund certificate 2025",
+          "content": "Pensionskasse Roche. Insured person: Lukas Brandt, born 1979. Insured salary 142,000 CHF. Vested benefits as of 01.01.2025: 486,300 CHF, of which BVG mandatory part 211,800 CHF. Employee contribution 9 %, employer contribution 13.5 %. Projected old-age capital at 65: 1,104,000 CHF; conversion rate 5.4 % gives an annuity of 59,616 CHF per year. Maximum voluntary buy-in currently 98,500 CHF, tax deductible. Disability pension 85,200 CHF."
+        },
+        {
+          "title": "Term life insurance policy Swiss Life",
+          "content": "Swiss Life AG policy no. 77-118-402. Policyholder and insured: Lukas Brandt. Cover type: decreasing term risk cover, 20 years. Sum insured 750,000 CHF, decreasing linearly to 250,000 CHF. Beneficiaries: spouse Claudia Brandt 60 %, children equally 40 %. Annual premium 1,284 CHF, payable by direct debit. Health questionnaire accepted without exclusions. Waiting period none. Pillar 3b."
+        },
+        {
+          "title": "Source of wealth declaration",
+          "content": "Know-your-client form, section 4. The client declares that the assets deposited (approx. 3.2 million CHF) originate from (a) the 2019 sale of his 40 % stake in Brandt Engineering GmbH to a strategic acquirer for 2.1 million CHF, documented by the share purchase agreement and notary deed; (b) an inheritance from his late father in 2016 of 0.7 million CHF, documented by the certificate of heirs; (c) accumulated salary savings. No politically exposed persons involved. Compliance review: plausible, low risk."
+        },
+        {
+          "title": "Visa Platinum card statement September",
+          "content": "Card ending 4471. Statement date 25.09.2025. Previous balance 2,318.60 CHF, paid in full. New transactions: Zalando 189.00, Booking.com Lisbon 642.80 (EUR, fee 1.75 %), Coop Pronto 48.20, Digitec Galaxus 1,099.00, Apple.com/bill 12.00, Restaurant Kronenhalle 286.50. New balance 2,277.50 CHF. Minimum due 113.88 CHF by 20.10.2025. Annual interest rate 11.9 % on unpaid balances. Reward points earned: 2,277."
+        }
+      ],
+      "queries": [
+        {
+          "q": "address proof",
+          "kind": "sem",
+          "expected": [
+            "EnBW electricity invoice October 2025"
+          ]
+        },
+        {
+          "q": "proof of citizenship",
+          "kind": "sem",
+          "expected": [
+            "Copy of Swiss passport"
+          ]
+        },
+        {
+          "q": "home loan",
+          "kind": "sem",
+          "expected": [
+            "Mortgage offer Zürcher Kantonalbank"
+          ]
+        },
+        {
+          "q": "retirement savings",
+          "kind": "sem",
+          "expected": [
+            "Pension fund certificate 2025"
+          ]
+        },
+        {
+          "q": "payout to family if I die",
+          "kind": "sem",
+          "expected": [
+            "Term life insurance policy Swiss Life"
+          ]
+        },
+        {
+          "q": "where did the client's money come from",
+          "kind": "sem",
+          "expected": [
+            "Source of wealth declaration"
+          ]
+        },
+        {
+          "q": "income taxes",
+          "kind": "sem",
+          "expected": [
+            "Form 1040 federal filing 2024"
+          ]
+        },
+        {
+          "q": "risk appetite and portfolio mix",
+          "kind": "sem",
+          "expected": [
+            "Investment policy statement – balanced mandate"
+          ]
+        },
+        {
+          "q": "kWh consumption",
+          "kind": "lex",
+          "expected": [
+            "EnBW electricity invoice October 2025"
+          ]
+        },
+        {
+          "q": "BVG buy-in",
+          "kind": "lex",
+          "expected": [
+            "Pension fund certificate 2025"
+          ]
+        },
+        {
+          "q": "Kronenhalle",
+          "kind": "lex",
+          "expected": [
+            "Visa Platinum card statement September"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "medical",
+      "client": {
+        "first_name": "Petra",
+        "last_name": "Huber",
+        "email": "petra.huber@review.example"
+      },
+      "documents": [
+        {
+          "title": "Cardiology discharge summary",
+          "content": "Admitted via emergency department with 2 hours of crushing retrosternal chest pressure radiating to the left arm, diaphoresis. ECG: ST elevation V1–V4. High-sensitivity troponin T 1,840 ng/L. Diagnosis: acute anterior ST-elevation myocardial infarction (STEMI). Primary PCI with drug-eluting stent to proximal LAD, TIMI 3 flow restored. Echo: LVEF 45 %, anterior hypokinesia. Discharged day 4 on aspirin 100 mg, ticagrelor 90 mg twice daily for 12 months, atorvastatin 80 mg, bisoprolol 2.5 mg, ramipril 2.5 mg. Cardiac rehabilitation referral. Follow-up with cardiologist in 6 weeks."
+        },
+        {
+          "title": "Haematology and chemistry panel",
+          "content": "Specimen collected fasting 07:40. Haemoglobin 13.9 g/dL (13.5–17.5). Leukocytes 6.8 x10^9/L. Platelets 254 x10^9/L. Fasting glucose 7.4 mmol/L (H). HbA1c 7.8 % / 62 mmol/mol (H). Total cholesterol 6.1 mmol/L, LDL 4.2 mmol/L (H), HDL 1.0, triglycerides 2.3 (H). Creatinine 92 µmol/L, eGFR 81 mL/min/1.73m². ALT 38 U/L. TSH 2.1 mU/L. Comment: glycaemic and lipid targets not met; recommend review of therapy."
+        },
+        {
+          "title": "Prescription – metformin and lisinopril",
+          "content": "Rx. Metformin 500 mg tablets: take one tablet twice daily with meals for one week, then 1000 mg twice daily. Quantity 180, 2 repeats. Lisinopril 10 mg: one tablet every morning for hypertension. Quantity 90, 3 repeats. Indication for metformin: type 2 DM, newly diagnosed. Counselled on gastrointestinal side effects and lactic acidosis warning signs. Hold metformin before iodinated contrast. Prescriber: Dr. med. Petra Huber, GP."
+        },
+        {
+          "title": "Allergy record",
+          "content": "Documented hypersensitivities. 1) Penicillin (amoxicillin) – anaphylaxis 2012 with urticaria, angioedema and hypotension, required adrenaline; avoid all beta-lactams except after allergist testing. 2) Latex – contact dermatitis. 3) Shellfish – oral swelling. 4) Codeine – severe nausea (adverse reaction, not immunological). Patient carries an adrenaline auto-injector. Wristband: red."
+        },
+        {
+          "title": "Radiology – chest X-ray PA and lateral",
+          "content": "Indication: persistent cough for three weeks, smoker. Findings: lungs are clear without focal consolidation, effusion or pneumothorax. No hilar lymphadenopathy. Cardiomediastinal silhouette within normal limits, cardiothoracic ratio 0.46. Mild degenerative changes of the thoracic spine. Impression: no acute cardiopulmonary abnormality. If symptoms persist, consider low-dose CT."
+        },
+        {
+          "title": "MRI lumbar spine",
+          "content": "Technique: sagittal T1/T2, axial T2. Findings: at L4–L5 a left paracentral extrusion of the nucleus pulposus measuring 9 mm, compressing the traversing left L5 nerve root in the lateral recess. Mild facet arthropathy L5–S1. Conus terminates at L1. No spinal canal stenosis elsewhere. Impression: L4–L5 herniation with L5 radiculopathy correlate. Refer to spine surgery if neurological deficit progresses."
+        },
+        {
+          "title": "Vaccination certificate",
+          "content": "International certificate of vaccination. Tetanus/diphtheria/pertussis (Boostrix) 12.03.2022, lot AC37B. Influenza (Fluarix Tetra) 18.10.2025. COVID-19 mRNA (Comirnaty JN.1) 18.10.2025. Hepatitis A+B (Twinrix) series completed 2019. Yellow fever (Stamaril) 04.06.2018, valid for life. Tick-borne encephalitis (FSME-Immun) booster due 2027. Administered by Travel Clinic Zürich."
+        },
+        {
+          "title": "Dermatology consultation",
+          "content": "Referral for changing pigmented lesion on the left upper back. Dermoscopy: asymmetric, irregular network, blue-white veil. Excision biopsy performed. Histology: superficial spreading malignant melanoma, Breslow thickness 0.8 mm, Clark level III, no ulceration, mitoses 1/mm², margins clear. Stage pT1b. Plan: wide local re-excision with 1 cm margin, sentinel lymph node biopsy discussed, full-body surveillance every 3 months."
+        },
+        {
+          "title": "Psychiatry assessment",
+          "content": "Presenting complaint: six months of low mood, anhedonia, early-morning waking, poor concentration and loss of appetite with 5 kg weight loss after redundancy. PHQ-9 score 19. Passive thoughts that life is not worth living, no plan or intent. Diagnosis: major depressive disorder, single episode, moderate to severe. Plan: sertraline 50 mg titrated to 100 mg, cognitive behavioural therapy weekly, safety plan agreed, review in 2 weeks."
+        },
+        {
+          "title": "Physiotherapy plan after ACL reconstruction",
+          "content": "Status post arthroscopic anterior cruciate ligament reconstruction with hamstring graft, right side, 2 weeks ago. Goals: full extension by week 2, flexion 120° by week 6, jogging at month 3, return to pivoting sport at month 9 after functional testing. Protocol: quadriceps activation, straight leg raises, patellar mobilisation, stationary cycling, closed-chain strengthening, proprioception and balance training. Crutches until normal gait. Cryotherapy for swelling."
+        }
+      ],
+      "queries": [
+        {
+          "q": "heart attack",
+          "kind": "sem",
+          "expected": [
+            "Cardiology discharge summary"
+          ]
+        },
+        {
+          "q": "blood sugar too high",
+          "kind": "sem",
+          "expected": [
+            "Haematology and chemistry panel"
+          ]
+        },
+        {
+          "q": "drug intolerance",
+          "kind": "sem",
+          "expected": [
+            "Allergy record"
+          ]
+        },
+        {
+          "q": "slipped disc",
+          "kind": "sem",
+          "expected": [
+            "MRI lumbar spine"
+          ]
+        },
+        {
+          "q": "skin cancer",
+          "kind": "sem",
+          "expected": [
+            "Dermatology consultation"
+          ]
+        },
+        {
+          "q": "feeling sad and hopeless",
+          "kind": "sem",
+          "expected": [
+            "Psychiatry assessment"
+          ]
+        },
+        {
+          "q": "knee surgery recovery",
+          "kind": "sem",
+          "expected": [
+            "Physiotherapy plan after ACL reconstruction"
+          ]
+        },
+        {
+          "q": "immunisations",
+          "kind": "sem",
+          "expected": [
+            "Vaccination certificate"
+          ]
+        },
+        {
+          "q": "troponin",
+          "kind": "lex",
+          "expected": [
+            "Cardiology discharge summary"
+          ]
+        },
+        {
+          "q": "sertraline",
+          "kind": "lex",
+          "expected": [
+            "Psychiatry assessment"
+          ]
+        },
+        {
+          "q": "penicillin anaphylaxis",
+          "kind": "lex",
+          "expected": [
+            "Allergy record"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "legal",
+      "client": {
+        "first_name": "Sofia",
+        "last_name": "Keller",
+        "email": "sofia.keller@review.example"
+      },
+      "documents": [
+        {
+          "title": "Employment contract – Senior Analyst",
+          "content": "Between Helvetia Analytics AG (employer) and Sofia Keller (employee). Start date 1 February 2026, indefinite duration. Position: Senior Analyst, 100 %. Gross annual salary 128,000 CHF in 13 instalments plus discretionary bonus. Probation period three months, during which either party may end the employment with seven days' written notice. Thereafter the notice period is three months to the end of a calendar month. Holidays 25 days. Non-compete covenant 12 months within Switzerland. Governing law: Swiss Code of Obligations."
+        },
+        {
+          "title": "Mutual non-disclosure agreement",
+          "content": "This Mutual Non-Disclosure Agreement is entered into by Keller Ventures GmbH and Nordlicht Robotics AS. Confidential Information means all technical, financial and commercial information disclosed by either party, marked or reasonably understood as confidential. The receiving party shall use it solely to evaluate a potential collaboration, restrict access to employees on a need-to-know basis and return or destroy it on request. Obligations survive five years. Exclusions: public domain, independently developed. Governing law: England and Wales."
+        },
+        {
+          "title": "Residential lease – Seestrasse 12",
+          "content": "Landlord: Immobilien Zürichsee AG. Tenant: Sofia Keller. Premises: 3.5-room flat, 2nd floor, Seestrasse 12, 8800 Thalwil, with cellar compartment and parking space no. 4. Lease begins 1 April 2026 for an indefinite period. Monthly net payment 2,450 CHF plus 220 CHF ancillary costs on account. Security deposit three months, held in a blocked savings account. Notice by either side three months to end of March or September. Pets by permission only. Reference interest rate 1.75 %."
+        },
+        {
+          "title": "Power of attorney",
+          "content": "I, Sofia Keller, hereby appoint Marco Keller as my attorney-in-fact with full authority to act for me in all banking, tax and administrative matters, including opening and closing accounts, executing transfers, filing declarations and representing me before authorities. This authority remains in force if I lose capacity (durable) until revoked in writing. Notarised in Zug on 3 March 2026."
+        },
+        {
+          "title": "Last will and testament",
+          "content": "I, Heinrich Keller, revoke all earlier dispositions. Upon my passing, my estate shall be distributed as follows: the compulsory portions to my children Sofia and Marco; the freely disposable share to the Zürich Children's Hospital foundation; my art collection to Sofia. I appoint lawyer Dr. Anna Frei as executor. Handwritten, dated and signed in Küsnacht on 10 January 2025."
+        },
+        {
+          "title": "Prenuptial agreement",
+          "content": "Between the future spouses Sofia Keller and Daniel Roth, executed before a notary. The parties adopt the regime of separation of assets. Each retains ownership of the assets they bring in and acquire, including the shares of Keller Ventures GmbH and the flat in Basel. No claim to participation in acquired gains. Household expenses are shared in proportion to income. In the event of divorce, no maintenance claims beyond statutory child support."
+        },
+        {
+          "title": "Shareholders' agreement Keller Ventures GmbH",
+          "content": "Parties: Sofia Keller (55 %), Alpine Seed Fund LP (30 %), Marco Keller (15 %). Board of three: two appointed by Sofia Keller, one by the fund. Pre-emption on new issues pro rata. Transfers subject to right of first refusal. Drag-along: holders of 70 % can compel a sale of 100 %. Tag-along: minority may join any sale of a controlling stake on equal terms. Good leaver/bad leaver provisions for founders, vesting over 4 years with 1-year cliff. Deadlock: escalation then mediation."
+        },
+        {
+          "title": "Settlement agreement – wrongful dismissal claim",
+          "content": "Between Daniel Roth and Bergbahn Logistics AG. In full and final settlement of the claim filed with the labour court of Zürich for wrongful dismissal, the company pays a severance of 45,000 CHF gross, issues a positive reference, and releases the employee from garden leave. The employee withdraws the claim and waives all further demands. Each party bears its own legal costs. Confidentiality and non-disparagement apply."
+        },
+        {
+          "title": "Used vehicle bill of sale",
+          "content": "Seller: Marco Keller. Buyer: Lea Gerber. Vehicle: Volkswagen Golf 1.5 TSI, first registration 06/2021, VIN WVWZZZCDZMW123456, 48,200 km. Price 19,900 CHF paid by bank transfer on handover. Sold as inspected, excluding any warranty, except that the seller confirms the car is accident-free. Handover of two keys, service booklet and registration papers on 15 May 2026."
+        },
+        {
+          "title": "Trademark licence agreement",
+          "content": "Licensor: Nordlicht Robotics AS, owner of the word mark NORDLICHT (EUTM 018765432). Licensee: Keller Ventures GmbH. Grant: non-exclusive, non-transferable licence to use the mark on service robots sold in Switzerland and Austria. Royalty: 4 % of net sales, minimum 20,000 EUR per year. Quality control: licensor may inspect products. Term 5 years. The licensee shall not register confusingly similar marks or domain names."
+        }
+      ],
+      "queries": [
+        {
+          "q": "termination clause",
+          "kind": "sem",
+          "expected": [
+            "Employment contract – Senior Analyst"
+          ]
+        },
+        {
+          "q": "rental contract",
+          "kind": "sem",
+          "expected": [
+            "Residential lease – Seestrasse 12"
+          ]
+        },
+        {
+          "q": "secrecy pact",
+          "kind": "sem",
+          "expected": [
+            "Mutual non-disclosure agreement"
+          ]
+        },
+        {
+          "q": "someone to handle my affairs",
+          "kind": "sem",
+          "expected": [
+            "Power of attorney"
+          ]
+        },
+        {
+          "q": "inheritance after death",
+          "kind": "sem",
+          "expected": [
+            "Last will and testament"
+          ]
+        },
+        {
+          "q": "marriage contract",
+          "kind": "sem",
+          "expected": [
+            "Prenuptial agreement"
+          ]
+        },
+        {
+          "q": "fired unfairly compensation",
+          "kind": "sem",
+          "expected": [
+            "Settlement agreement – wrongful dismissal claim"
+          ]
+        },
+        {
+          "q": "car purchase",
+          "kind": "sem",
+          "expected": [
+            "Used vehicle bill of sale"
+          ]
+        },
+        {
+          "q": "drag-along",
+          "kind": "lex",
+          "expected": [
+            "Shareholders' agreement Keller Ventures GmbH"
+          ]
+        },
+        {
+          "q": "Seestrasse",
+          "kind": "lex",
+          "expected": [
+            "Residential lease – Seestrasse 12"
+          ]
+        },
+        {
+          "q": "executor",
+          "kind": "lex",
+          "expected": [
+            "Last will and testament"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "software",
+      "client": {
+        "first_name": "Support",
+        "last_name": "Desk",
+        "email": "support.desk@review.example"
+      },
+      "documents": [
+        {
+          "title": "Ticket #4812 – Authentication failure after password reset",
+          "content": "Reporter: support desk. Since the 2.14 release, users who reset their credentials through the 'Forgot password' email cannot sign in afterwards. The identity provider returns 401 invalid_grant. Clearing cookies does not help. Logs show the refresh token issued before the reset is still cached in Redis and replayed. Workaround: revoke sessions manually in the admin console. Severity: high, affects ~3 % of active accounts."
+        },
+        {
+          "title": "Ticket #4820 – HTTP 500 on checkout",
+          "content": "Placing an order with a discount coupon returns HTTP 500 Internal Server Error. Stack trace: java.lang.NullPointerException at PaymentService.applyCoupon(PaymentService.java:212) because coupon.currency is null for legacy coupons. The cart is not cleared, so shoppers retry and get the same error. Started after migration V87. Fix: default currency to store currency, add a test."
+        },
+        {
+          "title": "Ticket #4833 – Dashboard sluggish, 40 s render",
+          "content": "The analytics dashboard takes about 40 seconds before charts appear for tenants with more than 50k events. Profiling: the widgets endpoint issues one SQL query per widget per day (N+1), and events.created_at has no index. p95 latency of /api/widgets is 38 s. Proposed fix: batch query with GROUP BY day, composite index (tenant_id, created_at), cache for 5 minutes."
+        },
+        {
+          "title": "Ticket #4840 – Emails not delivered",
+          "content": "Order confirmation and invoice mails are bouncing for Gmail and Outlook recipients since Monday. Bounce: 550 5.7.26 unauthenticated mail, SPF fail. The new marketing provider was added to DNS without updating the SPF record, and the DKIM selector rotated. Action: include the provider in SPF, publish the new DKIM key, set DMARC to p=quarantine after verification."
+        },
+        {
+          "title": "Ticket #4851 – iOS app crashes on startup",
+          "content": "After updating to iOS 18.1 the app terminates on launch for all users on iPhone 12 and older. Crashlytics: EXC_BAD_ACCESS in WidgetKit timeline provider while reading the shared app group container before it is migrated. 12k crash events in 24 h. Hotfix 5.3.1: guard the migration, delay widget refresh, submit expedited review."
+        },
+        {
+          "title": "Ticket #4860 – CSV export truncates rows",
+          "content": "Exporting the transaction list to CSV stops at 10,000 rows without warning. The export service uses the paginated list API and ignores the next cursor. Additionally, fields containing semicolons are not quoted, which shifts columns in Excel. Fix: stream all pages, quote per RFC 4180, add row count to the file footer."
+        },
+        {
+          "title": "Ticket #4871 – Scheduled reports arrive an hour late",
+          "content": "Weekly PDF reports scheduled for 08:00 Europe/Zurich arrive at 09:00 since the switch from summer to winter time. The scheduler stores the cron in UTC computed once at creation. Fix: store the IANA zone and wall-clock time and compute the next run with zoneinfo; backfill existing schedules."
+        },
+        {
+          "title": "Ticket #4885 – Worker pods OOMKilled",
+          "content": "The ingest workers are restarted every 3–4 hours with OOMKilled (limit 2 GiB). Heap dump shows an unbounded in-process LRU cache of parsed documents whose eviction never runs because the max size is read from an unset env var (defaults to 0 = unlimited). Resident set grows linearly with processed jobs. Fix: set max size 512, add a gauge for cache size."
+        },
+        {
+          "title": "Ticket #4890 – TLS certificate expired on api subdomain",
+          "content": "api.example-shop.ch serves a certificate that expired at 00:00 UTC. Clients fail with CERT_HAS_EXPIRED; mobile apps cannot reach the backend. The ACME renewal job failed silently for 30 days because the DNS-01 token was revoked. Mitigation: manual renewal; add alerting 14 days before expiry and a synthetic probe."
+        },
+        {
+          "title": "Ticket #4902 – Duplicate charges on subscription renewal",
+          "content": "Several subscribers were debited two or three times for the monthly plan on the 1st. The payment provider webhook timed out after 10 s, was retried, and our handler created a new charge per delivery. No idempotency key was passed to the provider. Fix: idempotency key = subscription id + period, dedupe webhook events by id, refund affected customers."
+        }
+      ],
+      "queries": [
+        {
+          "q": "login broken",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4812 – Authentication failure after password reset"
+          ]
+        },
+        {
+          "q": "cannot pay for order, server error",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4820 – HTTP 500 on checkout"
+          ]
+        },
+        {
+          "q": "page is slow",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4833 – Dashboard sluggish, 40 s render"
+          ]
+        },
+        {
+          "q": "customers not getting notifications",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4840 – Emails not delivered"
+          ]
+        },
+        {
+          "q": "phone app keeps closing",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4851 – iOS app crashes on startup"
+          ]
+        },
+        {
+          "q": "running out of RAM",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4885 – Worker pods OOMKilled"
+          ]
+        },
+        {
+          "q": "billed twice",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4902 – Duplicate charges on subscription renewal"
+          ]
+        },
+        {
+          "q": "daylight saving bug",
+          "kind": "sem",
+          "expected": [
+            "Ticket #4871 – Scheduled reports arrive an hour late"
+          ]
+        },
+        {
+          "q": "invalid_grant",
+          "kind": "lex",
+          "expected": [
+            "Ticket #4812 – Authentication failure after password reset"
+          ]
+        },
+        {
+          "q": "OOMKilled",
+          "kind": "lex",
+          "expected": [
+            "Ticket #4885 – Worker pods OOMKilled"
+          ]
+        },
+        {
+          "q": "DKIM",
+          "kind": "lex",
+          "expected": [
+            "Ticket #4840 – Emails not delivered"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "german",
+      "client": {
+        "first_name": "Jonas",
+        "last_name": "Wagner",
+        "email": "jonas.wagner@review.example"
+      },
+      "documents": [
+        {
+          "title": "Mietvertrag für Wohnräume",
+          "content": "Zwischen Frau Ingrid Vogel (Vermieterin) und Herrn Jonas Wagner (Mieter) wird folgender Vertrag geschlossen. Mietobjekt: 2-Zimmer-Wohnung im 3. Obergeschoss, Lindenstraße 8, 10969 Berlin, 58 m². Mietbeginn 1. Mai 2026, unbefristet. Nettokaltmiete 980 EUR, Vorauszahlung Betriebskosten 190 EUR, Heizkosten 85 EUR. Kaution drei Nettokaltmieten. Die Kündigungsfrist für den Mieter beträgt drei Monate. Schönheitsreparaturen trägt der Mieter. Haustiere nur nach Zustimmung."
+        },
+        {
+          "title": "Lohnabrechnung März 2026",
+          "content": "Arbeitgeber: Alpenblick Software GmbH. Arbeitnehmer: Jonas Wagner, Personalnummer 1047. Abrechnungsmonat März 2026. Bruttolohn 7.200,00 CHF. Abzüge: AHV/IV/EO 5,3 % 381,60; ALV 1,1 % 79,20; Pensionskasse BVG 412,50; Nichtberufsunfall 96,48; Quellensteuer Tarif A0 612,00. Nettolohn 5.618,22 CHF, Auszahlung am 25.03.2026 auf IBAN CH56 0483 5012 3456 7800 9. Ferienguthaben 18,5 Tage."
+        },
+        {
+          "title": "Arztbrief Innere Medizin",
+          "content": "Sehr geehrte Frau Kollegin, wir berichten über Herrn Jonas Wagner, stationär vom 03. bis 09.02.2026. Diagnose: ambulant erworbene Pneumonie im rechten Unterlappen. Aufnahme mit Fieber 39,4 °C, produktivem Husten und Dyspnoe. CRP 186 mg/l, Leukozyten 15,2. Röntgen-Thorax: Infiltrat rechts basal. Therapie: Amoxicillin/Clavulansäure i.v., dann oral für insgesamt 7 Tage. Entlassung in gutem Allgemeinzustand. Kontrolle beim Hausarzt in einer Woche empfohlen. Mit freundlichen Grüßen, Oberarzt Dr. Lehmann."
+        },
+        {
+          "title": "Arbeitsvertrag unbefristet",
+          "content": "Zwischen der Alpenblick Software GmbH und Herrn Jonas Wagner. Beginn des Arbeitsverhältnisses 1. Juli 2025, Tätigkeit als Backend-Entwickler. Probezeit sechs Monate. Wochenarbeitszeit 40 Stunden. Jahresgehalt 92.000 EUR brutto, zahlbar in zwölf Monatsraten. Urlaub 28 Arbeitstage. Nach der Probezeit gilt eine Kündigungsfrist von drei Monaten zum Quartalsende. Nebentätigkeiten bedürfen der Zustimmung. Verschwiegenheitspflicht auch nach Ende des Vertrages."
+        },
+        {
+          "title": "Steuerbescheid 2025",
+          "content": "Finanzamt Berlin-Kreuzberg. Bescheid für 2025 über Einkommensteuer und Solidaritätszuschlag. Festgesetzt werden: Einkommensteuer 21.384 EUR, Solidaritätszuschlag 0 EUR, Kirchensteuer 0 EUR. Anzurechnen: Lohnsteuer 19.920 EUR. Verbleibende Nachzahlung 1.464 EUR, fällig am 15.04.2026. Werbungskosten wurden in Höhe von 2.310 EUR anerkannt; das häusliche Arbeitszimmer wurde nicht berücksichtigt. Rechtsbehelfsbelehrung: Einspruch innerhalb eines Monats."
+        },
+        {
+          "title": "Hausratversicherung Police",
+          "content": "Versicherungsnehmer: Jonas Wagner. Versicherungsort: Lindenstraße 8, 10969 Berlin. Versicherungssumme 45.000 EUR, Unterversicherungsverzicht. Versicherte Gefahren: Feuer, Leitungswasser, Einbruchdiebstahl, Raub, Vandalismus, Sturm und Hagel. Fahrraddiebstahl bis 1.500 EUR. Selbstbeteiligung 150 EUR. Jahresbeitrag 118,40 EUR. Laufzeit ein Jahr, verlängert sich stillschweigend."
+        },
+        {
+          "title": "Kaufvertrag Gebrauchtwagen",
+          "content": "Verkäufer: Thomas Becker. Käufer: Jonas Wagner. Fahrzeug: Škoda Octavia Combi 2.0 TDI, Erstzulassung 03/2020, Fahrgestellnummer TMBJJ7NE0L0123456, Kilometerstand 71.300. Kaufpreis 14.500 EUR, bar bei Übergabe. Das Fahrzeug wird unter Ausschluss der Sachmängelhaftung verkauft. Der Verkäufer versichert, dass das Fahrzeug unfallfrei ist. Übergabe mit Zulassungsbescheinigung Teil I und II und zwei Schlüsseln."
+        },
+        {
+          "title": "Vollmacht Bankangelegenheiten",
+          "content": "Hiermit bevollmächtige ich, Jonas Wagner, meine Schwester Lena Wagner, mich in allen Angelegenheiten gegenüber der Berliner Sparkasse zu vertreten, insbesondere Überweisungen auszuführen, Konten zu eröffnen und aufzulösen sowie Kontoauszüge anzufordern. Die Vollmacht gilt über meinen Tod hinaus und kann jederzeit schriftlich widerrufen werden."
+        }
+      ],
+      "queries": [
+        {
+          "q": "Gehaltsnachweis",
+          "kind": "sem",
+          "expected": [
+            "Lohnabrechnung März 2026"
+          ]
+        },
+        {
+          "q": "Lungenentzündung",
+          "kind": "sem",
+          "expected": [
+            "Arztbrief Innere Medizin"
+          ]
+        },
+        {
+          "q": "Einbruch Versicherung Wohnung",
+          "kind": "sem",
+          "expected": [
+            "Hausratversicherung Police"
+          ]
+        },
+        {
+          "q": "Autokauf",
+          "kind": "sem",
+          "expected": [
+            "Kaufvertrag Gebrauchtwagen"
+          ]
+        },
+        {
+          "q": "payslip",
+          "kind": "xl",
+          "expected": [
+            "Lohnabrechnung März 2026"
+          ]
+        },
+        {
+          "q": "pneumonia hospital letter",
+          "kind": "xl",
+          "expected": [
+            "Arztbrief Innere Medizin"
+          ]
+        },
+        {
+          "q": "household contents insurance",
+          "kind": "xl",
+          "expected": [
+            "Hausratversicherung Police"
+          ]
+        },
+        {
+          "q": "tax assessment notice",
+          "kind": "xl",
+          "expected": [
+            "Steuerbescheid 2025"
+          ]
+        },
+        {
+          "q": "Herzinfarkt",
+          "kind": "xl",
+          "expected": [
+            "Cardiology discharge summary"
+          ]
+        },
+        {
+          "q": "Geheimhaltungsvereinbarung",
+          "kind": "xl",
+          "expected": [
+            "Mutual non-disclosure agreement"
+          ]
+        },
+        {
+          "q": "Reisepass",
+          "kind": "xl",
+          "expected": [
+            "Copy of Swiss passport"
+          ]
+        },
+        {
+          "q": "Kündigungsfrist",
+          "kind": "lex",
+          "expected": [
+            "Arbeitsvertrag unbefristet",
+            "Mietvertrag für Wohnräume"
+          ]
+        },
+        {
+          "q": "Quellensteuer",
+          "kind": "lex",
+          "expected": [
+            "Lohnabrechnung März 2026"
+          ]
+        },
+        {
+          "q": "Nachzahlung Finanzamt",
+          "kind": "lex",
+          "expected": [
+            "Steuerbescheid 2025"
+          ]
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "first_name": "Müller & Söhne",
+      "last_name": "AG",
+      "email": "info@mueller-soehne.example",
+      "description": "Family-owned machine builder, Stuttgart"
+    },
+    {
+      "first_name": "ACME",
+      "last_name": "Holdings Ltd",
+      "email": "treasury@acme-holdings.example",
+      "description": "Holding company, Delaware"
+    },
+    {
+      "first_name": "Γιώργος",
+      "last_name": "Παπαδόπουλος",
+      "email": "g.papadopoulos@review.example",
+      "description": "Shipping family office, Piraeus"
+    },
+    {
+      "first_name": "Дмитрий",
+      "last_name": "Иванов",
+      "email": "d.ivanov@review.example",
+      "description": "Relocated from Moscow"
+    },
+    {
+      "first_name": "Anna",
+      "last_name": "Berg",
+      "email": "anna.berg+wealth@review.example",
+      "description": "Uses plus addressing"
+    },
+    {
+      "first_name": "Li",
+      "last_name": "Wei",
+      "email": "wei.li@review.example",
+      "description": "Short surname"
+    },
+    {
+      "first_name": "Thi",
+      "last_name": "Ng",
+      "email": "thi.ng@review.example"
+    }
+  ],
+  "client_queries": [
+    {
+      "q": "Müller",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "muller",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "Mueller",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "Söhne",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "Müller & Söhne AG",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "muller sohne",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "ACME",
+      "expected_email": "treasury@acme-holdings.example"
+    },
+    {
+      "q": "acme holdings",
+      "expected_email": "treasury@acme-holdings.example"
+    },
+    {
+      "q": "Acme Holding",
+      "expected_email": "treasury@acme-holdings.example"
+    },
+    {
+      "q": "acmee",
+      "expected_email": "treasury@acme-holdings.example"
+    },
+    {
+      "q": "Παπαδόπουλος",
+      "expected_email": "g.papadopoulos@review.example"
+    },
+    {
+      "q": "παπαδοπουλος",
+      "expected_email": "g.papadopoulos@review.example"
+    },
+    {
+      "q": "Παπαδοπουλ",
+      "expected_email": "g.papadopoulos@review.example"
+    },
+    {
+      "q": "Papadopoulos",
+      "expected_email": "g.papadopoulos@review.example"
+    },
+    {
+      "q": "Γιωργος Παπαδοπολος",
+      "expected_email": "g.papadopoulos@review.example"
+    },
+    {
+      "q": "Иванов",
+      "expected_email": "d.ivanov@review.example"
+    },
+    {
+      "q": "иванов",
+      "expected_email": "d.ivanov@review.example"
+    },
+    {
+      "q": "Иваноф",
+      "expected_email": "d.ivanov@review.example"
+    },
+    {
+      "q": "Ivanov",
+      "expected_email": "d.ivanov@review.example"
+    },
+    {
+      "q": "Дмитрий",
+      "expected_email": "d.ivanov@review.example"
+    },
+    {
+      "q": "anna.berg+wealth@review.example",
+      "expected_email": "anna.berg+wealth@review.example"
+    },
+    {
+      "q": "anna.berg@review.example",
+      "expected_email": "anna.berg+wealth@review.example"
+    },
+    {
+      "q": "+wealth",
+      "expected_email": "anna.berg+wealth@review.example"
+    },
+    {
+      "q": "berg+wealth",
+      "expected_email": "anna.berg+wealth@review.example"
+    },
+    {
+      "q": "Li",
+      "expected_email": "wei.li@review.example"
+    },
+    {
+      "q": "li",
+      "expected_email": "wei.li@review.example"
+    },
+    {
+      "q": "Ng",
+      "expected_email": "thi.ng@review.example"
+    },
+    {
+      "q": "AG",
+      "expected_email": "info@mueller-soehne.example"
+    },
+    {
+      "q": "We",
+      "expected_email": "wei.li@review.example"
+    }
+  ]
+}

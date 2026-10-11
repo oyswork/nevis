@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from nevis.clients.schemas import ClientRead
-from nevis.documents.schemas import DocumentRead
+from nevis.documents.schemas import DocumentPreview
 
 
 class ClientHit(BaseModel):
@@ -13,7 +13,7 @@ class ClientHit(BaseModel):
 
 class DocumentHit(BaseModel):
     type: Literal["document"] = "document"
-    document: DocumentRead
+    document: DocumentPreview
     # The chunk of the content that matched best (whitespace collapsed).
     matched_text: str
 

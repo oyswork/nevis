@@ -5,6 +5,7 @@ rankings) are exact: `basis(0)` is the query, `basis(1)` is at cosine distance 1
 `nearly(0, 1, weight)` sits between them.
 """
 
+import datetime
 import random
 import uuid
 from unittest.mock import AsyncMock, NonCallableMagicMock, create_autospec
@@ -12,7 +13,7 @@ from unittest.mock import AsyncMock, NonCallableMagicMock, create_autospec
 import pytest
 
 from nevis.db import DbPool
-from nevis.db_models import Document
+from nevis.documents.schemas import DocumentPreview
 from nevis.embeddings import EMBEDDING_DIMENSIONS, Reranker
 from nevis.search.documents import (
     OR_TSQUERY,
@@ -184,15 +185,12 @@ async def test_a_document_without_chunks_is_skipped(
 
 
 def candidate(title: str) -> Candidate:
-    document = Document(
+    document = DocumentPreview(
         id=uuid.uuid4(),
         client_id=uuid.uuid4(),
         title=title,
-        content=title,
         summary=None,
-        summary_attempts=0,
-        summary_locked_until=None,
-        created_at="2026-01-01T00:00:00Z",  # type: ignore[arg-type]  # pydantic parses it
+        created_at=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC),
     )
     return Candidate(document=document, matched_text=f"text of {title}")
 
@@ -394,3 +392,19 @@ async def test_a_negation_inside_a_word_does_not_exclude_documents(
     hits = await search_documents(db_pool, stub_embedder, None, "ab!-aa", 5)
 
     assert [hit.document.id for hit in hits] == [keep]
+
+
+@pytest.mark.integration
+async def test_a_long_document_repeating_a_word_does_not_outrank_a_short_one_about_it(
+    db_pool: DbPool, client_id: uuid.UUID, stub_embedder: NonCallableMagicMock
+) -> None:
+    # The vector side puts Long one place above Short, so the text side decides. Unnormalized,
+    # Long's 20 matches would win it; divided by length (TEXT_RANK_NORMALIZATION), Short does.
+    long_content = " ".join(["zebra"] + [f"filler{n}" for n in range(19)]) * 20
+    await add_document(db_pool, client_id, "Nearest", "unrelated", [("c", basis(0))])
+    await add_document(db_pool, client_id, "Long", long_content, [("c", nearly(0, 1, 0.2))])
+    await add_document(db_pool, client_id, "Short", "zebra", [("c", nearly(0, 1, 0.3))])
+
+    hits = await search_documents(db_pool, stub_embedder, None, "zebra", 3)
+
+    assert [hit.document.title for hit in hits] == ["Short", "Long", "Nearest"]

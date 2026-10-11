@@ -70,6 +70,11 @@ prod-smoke:
 exercise *args:
     scripts/exercise.sh "$@"
 
+# Measure search relevance on a throwaway stack: 58 labelled queries in 5 domains (relevance.py)
+[group("test")]
+relevance *args:
+    scripts/relevance.sh "$@"
+
 # Lint, format check and type check on the host
 [group("test")]
 check:

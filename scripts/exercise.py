@@ -181,7 +181,7 @@ def check_client_validation(run: Run, tag: str) -> None:
 
 
 def portfolio_review_content() -> str:
-    """A document long enough to be split into several chunks (nevis.search.chunking)."""
+    """A document long enough to be split into several chunks (nevis.documents.chunking)."""
     paragraphs = [
         f"Quarter {quarter} of 2026: portfolio rebalancing brought equities back to the 60 percent "
         f"target after market moves; fixed income duration stayed near {quarter + 4} years and the "
@@ -348,8 +348,10 @@ def check_document_search(run: Run, documents: dict[str, JsonObject]) -> None:
         None,
     )
     run.check(
-        "a document hit carries the document and the chunk that matched",
-        bill is not None and "Vattenfall" in bill["matched_text"] and bill["document"]["content"],
+        "a document hit carries the matched chunk and the document without its content",
+        bill is not None
+        and "Vattenfall" in bill["matched_text"]
+        and "content" not in bill["document"],
         bill,
     )
 

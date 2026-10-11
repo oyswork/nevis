@@ -10,23 +10,26 @@ import re
 from dataclasses import dataclass
 
 from nevis.db import DbPool
-from nevis.db_models import Document
-from nevis.documents.columns import DOCUMENT_COLUMNS
-from nevis.documents.schemas import DocumentRead
+from nevis.documents.schemas import DocumentPreview
 from nevis.embeddings import Embedder, Reranker
 from nevis.search.schemas import DocumentHit
 
-# Chunks fetched from the index: several per document are expected, so 4x the documents wanted.
-NEAREST_CHUNKS = 200
 # Documents kept from each ranking, and after fusion (what a reranker gets to look at).
 RANKED_DOCUMENTS = 50
 CANDIDATES = 20
+# Chunks fetched from the index: a document often has several, so 4 per ranked document.
+NEAREST_CHUNKS = 4 * RANKED_DOCUMENTS
 # RRF's damping constant; 60 is the value from the paper and what most implementations use.
 RRF_K = 60
-# Matches the text side ranks: ts_rank_cd costs a detoast and a scan per match, and one frequent
-# word under OR semantics matches most of the table. Trade-off: with very frequent terms the top
-# RANKED_DOCUMENTS are ranked from an arbitrary 1000 matches, not from all of them.
+# Caps how many full-text matches are scored: ts_rank_cd costs a detoast and a scan per match,
+# and one frequent word under OR semantics matches most of the table. Trade-off: with very
+# frequent terms the top RANKED_DOCUMENTS are ranked from an arbitrary 1000 matches, not from all
+# of them.
 TEXT_MATCHES_RANKED = 1000
+# ts_rank_cd normalization 2: the rank divided by the document's length, so a long document that
+# repeats a common query word doesn't outrank a short one about it. Measured on 58 queries over
+# 1,102 documents (scripts/relevance.py): MRR 0.60 -> 0.62, finance queries 0.43 -> 0.53.
+TEXT_RANK_NORMALIZATION = 2
 
 # Characters that mean something to websearch_to_tsquery / tsquery. They become spaces: its
 # negation handling can keep a "-" inside a word, and long runs of them overflow its parser stack
@@ -50,8 +53,9 @@ OR_TSQUERY = """
     ), '')::tsquery
 """
 
-ROW_COLUMNS = DOCUMENT_COLUMNS.split(", ")
-DOCUMENT_COLUMNS_OF_D = ", ".join(f"d.{column}" for column in ROW_COLUMNS)
+# What a hit shows of each document: no content, which can be 100k characters.
+PREVIEW_COLUMNS = tuple(DocumentPreview.model_fields)
+PREVIEW_COLUMNS_OF_D = ", ".join(f"d.{column}" for column in PREVIEW_COLUMNS)
 
 # $1: the query's words (OR_TSQUERY), $2: its embedding. `nearest` is a bare ORDER BY ... LIMIT
 # so the HNSW index serves it; picking the best chunk per document must stay outside it
@@ -81,7 +85,8 @@ SEARCH_DOCUMENTS = f"""
     text_hits AS (
         SELECT document_id, row_number() OVER (ORDER BY score DESC, document_id) AS rank
         FROM (
-            SELECT matches.id AS document_id, ts_rank_cd(matches.tsv, query.tsquery) AS score
+            SELECT matches.id AS document_id,
+                   ts_rank_cd(matches.tsv, query.tsquery, {TEXT_RANK_NORMALIZATION}) AS score
             FROM (
                 SELECT d.id, d.tsv
                 FROM documents AS d, query
@@ -102,7 +107,7 @@ SEARCH_DOCUMENTS = f"""
         ORDER BY score DESC, document_id
         LIMIT {CANDIDATES}
     )
-    SELECT {DOCUMENT_COLUMNS_OF_D}, coalesce(v.text, closest.text) AS matched_text
+    SELECT {PREVIEW_COLUMNS_OF_D}, coalesce(v.text, closest.text) AS matched_text
     FROM fused AS f
     JOIN documents AS d ON d.id = f.document_id
     LEFT JOIN vector_hits AS v ON v.document_id = f.document_id
@@ -119,7 +124,7 @@ SEARCH_DOCUMENTS = f"""
 
 @dataclass(frozen=True)
 class Candidate:
-    document: Document
+    document: DocumentPreview
     matched_text: str
 
     @property
@@ -140,10 +145,7 @@ async def search_documents(
         ranked = sorted(zip(scores, candidates, strict=True), key=lambda pair: -pair[0])
         candidates = [candidate for _, candidate in ranked]
     return [
-        DocumentHit(
-            document=DocumentRead.model_validate(candidate.document),
-            matched_text=candidate.matched_text,
-        )
+        DocumentHit(document=candidate.document, matched_text=candidate.matched_text)
         for candidate in candidates[:limit]
     ]
 
@@ -157,7 +159,7 @@ async def _candidates(pool: DbPool, q: str, vector: list[float]) -> list[Candida
     rows = await pool.fetch(SEARCH_DOCUMENTS, query_words(q), vector)
     return [
         Candidate(
-            document=Document(**{key: row[key] for key in ROW_COLUMNS}),
+            document=DocumentPreview(**{key: row[key] for key in PREVIEW_COLUMNS}),
             matched_text=row["matched_text"],
         )
         for row in rows
