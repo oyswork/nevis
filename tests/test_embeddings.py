@@ -17,7 +17,8 @@ from nevis.embeddings import (
     BATCH_SIZE,
     EMBEDDING_DIMENSIONS,
     EMBEDDING_MODEL,
-    MAX_CONCURRENT_CALLS,
+    MAX_DOCUMENT_CALLS,
+    MAX_QUERY_CALLS,
     ONNX_THREADS,
     RERANKER_MODEL,
     Embedder,
@@ -111,43 +112,90 @@ async def test_embed_query_returns_one_float_list(
     fake_text_embedding.return_value.query_embed.assert_called_once_with("proof of address")
 
 
-@pytest.mark.unit
-async def test_model_calls_run_at_most_max_concurrent_calls_at_once(
-    fake_text_embedding: NonCallableMagicMock,
-    fake_cross_encoder: NonCallableMagicMock,
-) -> None:
-    running = 0
-    peak = 0
-    lock = threading.Lock()
+class PeakCounter:
+    """Wraps model calls to record how many ran at once."""
 
-    def slow_call[T](result: T) -> Callable[..., T]:
+    def __init__(self) -> None:
+        self.peak = 0
+        self._running = 0
+        self._lock = threading.Lock()
+
+    def slow_call[T](self, result: T) -> Callable[..., T]:
         def call(*_: object, **__: object) -> T:
-            nonlocal running, peak
-            with lock:
-                running += 1
-                peak = max(peak, running)
+            with self._lock:
+                self._running += 1
+                self.peak = max(self.peak, self._running)
             time.sleep(0.05)
-            with lock:
-                running -= 1
+            with self._lock:
+                self._running -= 1
             return result
 
         return call
 
-    fake_text_embedding.return_value.query_embed.side_effect = slow_call(
+
+@pytest.mark.unit
+async def test_document_embedding_runs_at_most_max_document_calls_at_once(
+    fake_text_embedding: NonCallableMagicMock,
+) -> None:
+    calls = PeakCounter()
+    fake_text_embedding.return_value.passage_embed.side_effect = calls.slow_call(
         [np.array([1.0], dtype=np.float32)]
     )
-    fake_cross_encoder.return_value.rerank.side_effect = slow_call([1.0])
+    embedder = await create_embedder(EmbeddingSettings())
+
+    await asyncio.gather(*(embedder.embed_passages(["d"]) for _ in range(4)))
+
+    assert calls.peak == MAX_DOCUMENT_CALLS
+
+
+@pytest.mark.unit
+async def test_query_embedding_and_reranking_share_max_query_calls(
+    fake_text_embedding: NonCallableMagicMock,
+    fake_cross_encoder: NonCallableMagicMock,
+) -> None:
+    calls = PeakCounter()
+    fake_text_embedding.return_value.query_embed.side_effect = calls.slow_call(
+        [np.array([1.0], dtype=np.float32)]
+    )
+    fake_cross_encoder.return_value.rerank.side_effect = calls.slow_call([1.0])
     embedder = await create_embedder(EmbeddingSettings())
     reranker = await create_reranker(EmbeddingSettings(search_rerank=True))
     assert reranker is not None
 
     await asyncio.gather(
-        *(embedder.embed_query("q") for _ in range(4)),
-        *(reranker.rerank("q", ["d"]) for _ in range(4)),
+        *(embedder.embed_query("q") for _ in range(3)),
+        *(reranker.rerank("q", ["d"]) for _ in range(3)),
     )
 
-    # The cap is shared by both models.
-    assert peak == MAX_CONCURRENT_CALLS
+    assert calls.peak == MAX_QUERY_CALLS
+
+
+@pytest.mark.unit
+async def test_queries_do_not_wait_behind_document_embedding(
+    fake_text_embedding: NonCallableMagicMock,
+    fake_cross_encoder: NonCallableMagicMock,
+) -> None:
+    release = threading.Event()
+
+    def blocked_passage_embed(texts: list[str], **_: object) -> list[np.ndarray]:
+        release.wait(timeout=5)
+        return [np.array([1.0], dtype=np.float32) for _ in texts]
+
+    fake_text_embedding.return_value.passage_embed.side_effect = blocked_passage_embed
+    embedder = await create_embedder(EmbeddingSettings())
+    reranker = await create_reranker(EmbeddingSettings(search_rerank=True))
+    assert reranker is not None
+    # More documents than the document lane runs at once: every one of its threads is busy.
+    documents = [
+        asyncio.create_task(embedder.embed_passages(["d"])) for _ in range(MAX_DOCUMENT_CALLS + 1)
+    ]
+    try:
+        async with asyncio.timeout(1):
+            assert await embedder.embed_query("q") == [3.0, 4.0]
+            assert await reranker.rerank("q", ["d"]) == [1.0]
+    finally:
+        release.set()
+        await asyncio.gather(*documents)
 
 
 @pytest.mark.unit

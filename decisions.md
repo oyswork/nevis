@@ -91,8 +91,11 @@
 **Trade-offs.**
 
 - Relevance is built by hand (tiers, fusion, query sanitizing) rather than configured.
-- Embedding runs in the request, on a two-thread executor shared by all requests: 2–3.6 s for a
-  100k-character document (measured on an M4 Pro, 2026-10-11), and searches wait behind it.
+- Embedding runs in the request: 2–3.6 s for a 100k-character document (measured on an M4 Pro,
+  2026-10-11). Documents embed two at a time and further uploads queue. Searches have a thread of
+  their own, so they don't wait behind documents: during two concurrent 100k-character uploads the
+  slowest search went from 9.8 s to 24 ms, with the same upload time and memory (Docker on an M4
+  Pro, 2026-10-12). With the reranker on, concurrent searches take turns on that one thread.
 - The models need ~380 MB of memory in the api (batches of 4; the defaults peaked at 1.2 GB) and
   add ~150 MB to the image.
 - No relevance cutoff: neither cross-encoder scores nor cosine similarity separate junk from

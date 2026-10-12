@@ -25,17 +25,22 @@ ONNX_THREADS = 2
 # onnxruntime's memory arena grows to the largest batch: the default of 256 peaks near 1.2 GB
 # RSS, 4 stays near 380 MB with no throughput loss.
 BATCH_SIZE = 4
-# Model calls running at once, across the embedder and the reranker (each call already uses
-# ONNX_THREADS); the rest queue without holding a thread.
-MAX_CONCURRENT_CALLS = 2
+# Model calls running at once in each lane (each call already uses ONNX_THREADS); the rest queue
+# without holding a thread. Searches have a lane of their own (query embedding and reranking),
+# so they never wait behind a long document, which takes seconds to embed.
+MAX_DOCUMENT_CALLS = 2
+MAX_QUERY_CALLS = 1
 
-# Its own pool rather than the loop's default executor, which queued calls would otherwise
+# Their own pools rather than the loop's default executor, which queued calls would otherwise
 # fill, stalling everything else that uses it (DNS lookups included). Bound to no event loop.
-_executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_CALLS, thread_name_prefix="onnx")
+_document_executor = ThreadPoolExecutor(
+    max_workers=MAX_DOCUMENT_CALLS, thread_name_prefix="onnx-documents"
+)
+_query_executor = ThreadPoolExecutor(max_workers=MAX_QUERY_CALLS, thread_name_prefix="onnx-queries")
 
 
-async def _run[T](function: Callable[[], T]) -> T:
-    return await asyncio.get_running_loop().run_in_executor(_executor, function)
+async def _run[T](executor: ThreadPoolExecutor, function: Callable[[], T]) -> T:
+    return await asyncio.get_running_loop().run_in_executor(executor, function)
 
 
 class Embedder:
@@ -48,14 +53,17 @@ class Embedder:
             return []
         texts = list(texts)
         return await _run(
+            _document_executor,
             lambda: [
                 _to_floats(vector)
                 for vector in self._model.passage_embed(texts, batch_size=BATCH_SIZE)
-            ]
+            ],
         )
 
     async def embed_query(self, text: str) -> list[float]:
-        return await _run(lambda: _to_floats(next(iter(self._model.query_embed(text)))))
+        return await _run(
+            _query_executor, lambda: _to_floats(next(iter(self._model.query_embed(text))))
+        )
 
 
 class Reranker:
@@ -68,10 +76,11 @@ class Reranker:
             return []
         documents = list(documents)
         return await _run(
+            _query_executor,
             lambda: [
                 float(score)
                 for score in self._model.rerank(query, documents, batch_size=BATCH_SIZE)
-            ]
+            ],
         )
 
 
