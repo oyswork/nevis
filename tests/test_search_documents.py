@@ -179,7 +179,7 @@ async def test_a_full_text_only_match_still_gets_its_closest_chunk(
 async def test_a_document_without_chunks_is_skipped(
     db_pool: DbPool, client_id: uuid.UUID, stub_embedder: NonCallableMagicMock
 ) -> None:
-    await add_document(db_pool, client_id, "Legacy", "a zebra", [])
+    await add_document(db_pool, client_id, "Unembedded", "a zebra", [])
 
     assert await search_documents(db_pool, stub_embedder, None, "zebra", 5) == []
 
@@ -255,9 +255,9 @@ async def test_without_a_reranker_the_fused_order_and_the_limit_are_kept(
 async def test_a_chunkless_document_does_not_reduce_the_number_of_results(
     db_pool: DbPool, client_id: uuid.UUID, stub_embedder: NonCallableMagicMock
 ) -> None:
-    # 25 legacy documents match the word better than the 20 documents that have chunks.
+    # 25 documents without chunks match the word better than the 20 documents that have chunks.
     for n in range(25):
-        await add_document(db_pool, client_id, f"Legacy {n}", "zebra zebra zebra zebra", [])
+        await add_document(db_pool, client_id, f"Unembedded {n}", "zebra zebra zebra zebra", [])
     for n in range(20):
         await add_document(
             db_pool, client_id, f"Chunked {n}", "zebra", [("c", nearly(0, 1, 0.01 * (n + 1)))]

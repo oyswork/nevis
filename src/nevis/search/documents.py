@@ -61,8 +61,8 @@ PREVIEW_COLUMNS_OF_D = ", ".join(f"d.{column}" for column in PREVIEW_COLUMNS)
 # so the HNSW index serves it; picking the best chunk per document must stay outside it
 # (DISTINCT ON inside would scan everything). A document found only by full text gets its
 # closest chunk through the LATERAL join (ordering one document's few chunks). Documents
-# without chunks (they predate them, see `just reembed`) are excluded from the text side
-# before fusion, so they can't use up its slots.
+# without chunks (written outside the api; `just reembed` embeds them) are excluded from the
+# text side before fusion, so they can't use up its slots.
 SEARCH_DOCUMENTS = f"""
     WITH
     query AS MATERIALIZED (SELECT {OR_TSQUERY} AS tsquery),

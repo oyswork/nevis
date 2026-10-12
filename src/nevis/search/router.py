@@ -38,11 +38,11 @@ async def search(
 ) -> list[SearchHit]:
     """Clients matching by name, email or description, then documents matching by content.
 
-    Clients: whole-word matches first, then ones containing the text inside a word ("wealth"
-    finds john.doe@neviswealth.com), then close misspellings ("neviswelth"), regardless of case
-    and accents. Queries under 3 characters only match whole words. Documents: by meaning as
-    well as words ("address proof" finds a utility bill), the closest first; there is always some
-    closest document, so `documents_limit` bounds the list rather than a relevance cutoff.
+    Clients: whole-word matches first, then ones containing the text inside a word, then close
+    misspellings, regardless of case, accents and script. Queries under 3 characters only match
+    whole words. Documents: by meaning as well as words (a document can match without sharing a
+    word with the query), the closest first; there is always some closest document, so
+    `documents_limit` bounds the list rather than a relevance cutoff.
     Changes are searchable as soon as they are saved.
     """
     return await service.search(pool, embedder, reranker, q, clients_limit, documents_limit)

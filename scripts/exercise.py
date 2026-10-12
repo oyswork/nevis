@@ -5,7 +5,7 @@ summary worker uses a local model. Against any other running api:
 
     uv run python scripts/exercise.py --base-url https://203.0.113.7 --user name:password
 
-Covers every endpoint: health and docs, clients, documents, search (the task's examples, typos,
+Covers every endpoint: health and docs, clients, documents, search (substrings, meaning, typos,
 accents, limits, ordering, hostile input, validation) and summaries written by the worker. It
 only adds data, and every email carries a per-run tag, so it can run again on the same database;
 search checks look only at what this run created. Exits 1 if any check failed.
@@ -295,7 +295,7 @@ def check_client_search(run: Run, tag: str, clients: dict[str, JsonObject]) -> N
         ok = all(ids.get(k) in found for k in wanted) and not any(k in names for k in unwanted)
         run.check(f"{q!r} finds {', '.join(wanted)}" + (f" ({why})" if why else ""), ok, names)
 
-    finds("NevisWealth", [JOHN, ANNA], (ZOE, MIA), "task example: email and description")
+    finds("NevisWealth", [JOHN, ANNA], (ZOE, MIA), "email and description")
     finds("neviswealth", [JOHN], why="any case")
     finds("wealth", [JOHN], why="inside a word")
     finds("neviswelth", [JOHN], why="a typo")
@@ -328,8 +328,8 @@ def check_document_search(run: Run, documents: dict[str, JsonObject]) -> None:
         place = "first" if within == 1 else f"in the top {within}"
         run.check(f"{q!r} ranks {title!r} {place}" + (f" ({why})" if why else ""), ok, ranking)
 
-    # The bill has neither word; identity documents rank closer to "proof" (README, decisions.md).
-    ranks("address proof", UTILITY_BILL, 2, "task example: by meaning")
+    # The bill has neither word; identity documents rank closer to "proof".
+    ranks("address proof", UTILITY_BILL, 2, "by meaning")
     ranks("Vattenfall", UTILITY_BILL, 1, "a word in the content")
     ranks("electricity", UTILITY_BILL, 1)
     ranks("identity document", PASSPORT, 1)

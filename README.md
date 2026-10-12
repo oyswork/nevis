@@ -1,8 +1,7 @@
 # Nevis Search API
 
 Search across advisor clients and their documents: clients by name, email or description
-(including part of a word, so `NevisWealth` finds `john.doe@neviswealth.com`), documents by
-meaning as well as words (`address proof` finds a utility bill). Built as the Nevis home
+(including part of a word), documents by meaning as well as words. Built as the Nevis home
 assignment.
 
 FastAPI and Postgres 16, which also does the searching: `pg_trgm` for clients, full-text search
@@ -150,9 +149,7 @@ curl -s 'localhost:8000/search?q=address%20proof&documents_limit=2'
 ]
 ```
 
-The utility bill is found although it contains neither word. It comes second: the local
-embedding model rates identity documents as closer to "proof"
-([`decisions.md`](decisions.md) has the measurements).
+The utility bill is found although it contains neither word.
 
 ### Errors
 

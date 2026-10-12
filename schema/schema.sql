@@ -13,7 +13,7 @@ CREATE TABLE clients (
     social_links text[] NOT NULL DEFAULT '{}',
     -- Name, email and description, transliterated to ASCII and lowercased (nevis.text, with
     -- anyascii), for trigram search. Normalized in Python: unaccent isn't IMMUTABLE, so an index or generated column
-    -- would need a wrapper function, which is an Atlas Pro feature. '' for rows that predate it
+    -- would need a wrapper function, which is an Atlas Pro feature. '' for rows written outside the api
     -- (`just reembed` fills them in).
     search_text text NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now(),

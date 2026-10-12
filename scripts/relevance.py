@@ -7,7 +7,7 @@ should find. Kinds: "sem" shares no distinctive word with them, "xl" is in the o
 "lex" does share a word. Ranks count among all documents, so the database must start empty.
 
 It reports and doesn't judge: relevance depends on the models, so there is no pass mark. Compare
-the numbers before and after a change to search (decisions.md records earlier runs).
+the numbers before and after a change to search (decisions.md quotes them).
 """
 
 import argparse

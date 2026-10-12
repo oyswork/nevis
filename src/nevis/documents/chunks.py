@@ -11,8 +11,7 @@ INSERT_CHUNKS = """
     INSERT INTO document_chunks (document_id, ordinal, text, embedding)
     VALUES ($1, $2, $3, $4)
 """
-# A database without the row (new, or older than the table) gets the current model: whatever
-# chunks it has were embedded by the code running now or before the model was ever changed.
+# A new database has no row: the api's first start records the model it embeds with.
 RECORD_EMBEDDING_MODEL = "INSERT INTO embedding_model (name) VALUES ($1) ON CONFLICT DO NOTHING"
 SELECT_EMBEDDING_MODEL = "SELECT name FROM embedding_model"
 SET_EMBEDDING_MODEL = """

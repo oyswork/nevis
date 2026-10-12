@@ -19,8 +19,8 @@
   kept in step with it by hand.
 - **History without hand-written migrations.** Generated migration files keep a reviewable
   record of every schema change and of exactly what SQL ran against each database. Applying
-  `schema.sql` declaratively, which this project did at first, left no such record: a
-  destructive change, such as dropping a column, was visible only in Atlas's planned diff.
+  `schema.sql` declaratively leaves no such record: a destructive change, such as dropping a
+  column, is visible only in Atlas's planned diff.
 - **No heavy dependencies.** The usual alternative, SQLAlchemy models plus Alembic migrations,
   pulls in a large ORM and a migration framework just to describe tables and evolve them. Here
   the runtime needs only asyncpg and pydantic; Atlas runs in Docker and omymodels is a dev-only
@@ -42,7 +42,7 @@
 - The model generator's type mapping has quirks. For example, `timestamptz` must be spelled that
   way to become a timezone-aware datetime (see `CLAUDE.md`).
 - Forgetting to run `migrate diff` after editing `schema.sql` leaves the migrations behind the
-  file, and nothing checks for it automatically yet. Applied migrations are immutable: fixes go
+  file, and nothing checks for it automatically. Applied migrations are immutable: fixes go
   in a new migration, not an edit.
 
 ## Search: Postgres only, with `pg_trgm` and `pgvector`
@@ -62,17 +62,21 @@
 - `embedding_model` records which model produced the stored vectors. The api refuses to start
   when it embeds with another one, and only `just reembed --all` updates the record.
 - Writes: `POST` embeds a document's chunks before its transaction, then commits the document
-  and its chunks together. Search is consistent immediately: no outbox, worker or reindex.
+  and its chunks together. Search is consistent immediately, with no indexing step.
 - The models run in the api with fastembed (ONNX on the CPU) and are baked into the image.
-  `just reembed` embeds documents that predate their chunks.
+  `just reembed` embeds documents that have no chunks (written outside the api) and, with
+  `--all`, every document after a model change.
 - A MiniLM cross-encoder can rerank the top 20 (`NEVIS_SEARCH_RERANK`); off by default.
 
 **Why.**
 
 - One datastore: no second copy of the data to keep in step, and writes are visible at once.
-- Same quality as Meilisearch in a spike: on 13 labelled queries over 8 documents, both got 12/13
-  top-1 and 13/13 recall@5. `pg_trgm` matched every substring, case and accent case, and typos
-  (`neviswelth` → `neviswealth` 0.64, noise 0.25 or below).
+- Same quality as a search engine: on 13 labelled queries over 8 documents, Meilisearch and
+  Postgres both got 12/13 top-1 and 13/13 recall@5. Meilisearch would add a second datastore,
+  with an outbox and a reindex path to keep it in step, and matches inside a word only through
+  an experimental filter. Elasticsearch idles at ~1.4 GB, and its free license excludes
+  inference and the RRF retrievers. `pg_trgm` matched every substring, case and accent case, and
+  typos (a one-letter typo 0.64, unrelated text 0.25 or below).
 - Built-in full-text search is enough: BM25 (ParadeDB, AGPL) gave the same results.
 - Normalization in Python with `anyascii` (ISC license), not `unaccent`: indexing `unaccent()`
   needs an IMMUTABLE wrapper function. Functions are an Atlas Pro feature (Atlas 1.3.3 refuses
@@ -81,11 +85,13 @@
   whenever it changed. `anyascii` also romanizes other scripts, which `unaccent` doesn't
   (`Unidecode` does too, but is GPL).
 - Reranker off: on 15 documents it matched plain vector order (18/20 top-1) at 80–220 ms per
-  search, and the first spike's "utility bill first for address proof" didn't reproduce.
-- Length-normalized text rank: without it, long documents that repeat a common query word took
-  over the text side as data grew. On the relevance corpus (`just relevance`: 58 queries, 48
-  documents in five domains) plus 1,048 bulk documents, MRR went from 0.60 to 0.62 overall and
-  from 0.43 to 0.53 on finance queries.
+  search.
+- Length-normalized text rank: otherwise long documents that repeat a common query word take
+  over the text side as data grows. On the relevance corpus (`just relevance`: 58 queries, 48
+  documents in five domains) plus 1,048 bulk documents, MRR is 0.62 overall with it and 0.60
+  without, 0.53 and 0.43 on finance queries.
+- `bge-small-en-v1.5`: larger local models (up to bge-large, e5-large) ranked no better, and open
+  synonym lists (WordNet) added nothing over embeddings but sense noise (`bill` → `beak`).
 - The model check: vectors from two models can't be compared, and swapping one 384-dimension
   model for another fails silently otherwise.
 
@@ -95,8 +101,9 @@
 - Embedding runs in the request: 2–3.6 s for a 100k-character document (measured on an M4 Pro,
   2026-10-11). Documents embed two at a time and further uploads queue. Searches have a thread of
   their own, so they don't wait behind documents: during two concurrent 100k-character uploads the
-  slowest search went from 9.8 s to 24 ms, with the same upload time and memory (Docker on an M4
-  Pro, 2026-10-12). With the reranker on, concurrent searches take turns on that one thread.
+  slowest search takes 24 ms, against 9.8 s on one shared pool, at the same upload time and memory
+  (Docker on an M4 Pro, 2026-10-12). With the reranker on, concurrent searches take turns on that
+  one thread.
 - The models need ~380 MB of memory in the api (batches of 4; the defaults peaked at 1.2 GB) and
   add ~150 MB to the image.
 - No relevance cutoff: neither cross-encoder scores nor cosine similarity separate junk from
@@ -110,29 +117,16 @@
   matched with OR.
 - Full-text search sees raw text, so it's accent-sensitive; vector search covers documents that
   differ only in accents.
-- Embeddings don't know domain links, so where "address proof" ranks the utility bill depends on
-  what else is stored: 2nd among the README's 3 documents, 1st in the relevance corpus, but
-  outside the top 20 among 1,102 documents (measured before length normalization).
+- Embeddings know general meaning, not domain conventions such as which document serves as which
+  kind of evidence: such matches rank by general similarity and drop as similar documents
+  accumulate.
 - English only. `just relevance` (2026-10-11): MRR 0.68 finance, 0.85 medical, 0.75 legal and
   0.73 software support, but 0.42 for German and cross-language queries (0.26 where they share
   no word with the document). Both models and the `english` text configuration are English-only.
   A 384-dimension multilingual model (`paraphrase-multilingual-MiniLM-L12-v2`) measured German
   0.47 → 0.73 but English 0.77 → 0.71, vector side only.
-- Documents created before this change aren't found until `just reembed`.
 - Queries under three characters, and very common substrings, scan clients rather than use the
   trigram index; fine at thousands of clients.
-
-## Search: Meilisearch, with Postgres as the source of truth
-
-*Superseded* by the section above; kept short for the record. Meilisearch indexed clients and
-document chunks (hybrid search with its built-in embedder), fed by a transactional outbox and a
-background worker, so search was eventually consistent. It has no infix matching (`wealth` didn't
-find `neviswealth`) except through the experimental `CONTAINS` filter, and it needed a second
-datastore with an outbox and a reindex path. A spike showed Postgres matching its results without
-any of that. Two findings carried over: semantic scores never dropped below ~0.73, even for
-nonsense, so there is no relevance cutoff and documents are capped instead; and neither larger local
-embedding models (up to bge-large, e5-large) nor open synonym lists (WordNet) did better on
-"address proof" than the small model.
 
 ## Summaries: local model only, optional
 
@@ -140,8 +134,7 @@ embedding models (up to bge-large, e5-large) nor open synonym lists (WordNet) di
 
 - `summary` is filled in by the summary worker (below) calling a locally running model over
   the OpenAI-compatible chat API (Ollama, LM Studio, llama.cpp, vLLM), set by
-  `NEVIS_SUMMARY_API_URL` + `NEVIS_SUMMARY_MODEL`. Until the worker existed, an outbox job in
-  the api did this (superseded with the outbox).
+  `NEVIS_SUMMARY_API_URL` + `NEVIS_SUMMARY_MODEL`.
 - Unset: the worker idles, `summary` stays null.
 - No API key setting, so hosted LLM APIs aren't an option by accident.
 
@@ -203,8 +196,8 @@ embedding models (up to bge-large, e5-large) nor open synonym lists (WordNet) di
 - Caddy over nginx: it obtains and renews certificates by itself, so the whole proxy ships as an
   image with each release; nginx would need certbot and renewal hooks set up on the host.
 - An IP certificate because there is no domain; Let's Encrypt has issued them since January 2026.
-- Basic auth because client data is personal data and the API had no authentication; it is also
-  the "credentials to the API" the assignment asks for.
+- Basic auth because client data is personal data and the api has no authentication of its own;
+  it is also the "credentials to the API" the assignment asks for.
 - Rate limiting before auth: bcrypt is slow on purpose, and each search costs an embedding.
 - Images pulled, not built on the server: the release that was tested in CI is the one that runs,
   and the server needs neither the source nor build resources.
