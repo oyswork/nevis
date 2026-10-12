@@ -1,6 +1,7 @@
 """Client search in Postgres: trigram substring and typo matches over `clients.search_text`.
 
-`search_text` and the query are normalized the same way (nevis.text: case, accents, whitespace).
+`search_text` and the query are normalized the same way (nevis.text: case, accents, script,
+whitespace).
 """
 
 import re

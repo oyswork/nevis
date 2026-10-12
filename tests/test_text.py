@@ -9,14 +9,16 @@ NORMALIZE_CASES = [
     ("  a \t b\n\nc  ", "a b c"),
     ("", ""),
     ("Zoë Çelik-Ångström", "zoe celik-angstrom"),
-    # NFKD splits compatibility characters: the ligature.
-    ("ﬁnance", "finance"),
-    # Dotted capital I casefolds to i plus U+0307, which must go too.
+    ("ﬁnance", "finance"),  # ligature
     ("İstanbul", "istanbul"),
     ("Søren Łukasz", "soren lukasz"),
     ("Đorđe Ħamrun Ðór Þór", "dorde hamrun dor thor"),
     ("Ærø Œuvre \u0131", "aero oeuvre i"),  # \u0131: dotless i
-    ("日本語 😀", "日本語 😀"),
+    ("\uff21\uff22\u3000\uff43\uff44", "ab cd"),  # full-width letters and space
+    # Other scripts are transliterated, so a Latin query finds them.
+    ("Иван Петров", "ivan petrov"),
+    ("李明", "liming"),
+    ("😀", ":grinning:"),
 ]
 
 

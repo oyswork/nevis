@@ -282,6 +282,21 @@ async def test_search_ignores_accents_and_case_in_client_names(
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("q", ["ivan", "Иван", "petrov"])
+async def test_search_finds_names_in_other_scripts_by_their_transliteration(
+    db_client: AsyncClient, q: str
+) -> None:
+    created = (
+        await db_client.post(
+            "/clients",
+            json={"first_name": "Иван", "last_name": "Петров", "email": "i.petrov@mail.example"},
+        )
+    ).json()["id"]
+
+    assert client_ids(await search(db_client, q)) == [created]
+
+
+@pytest.mark.integration
 @pytest.mark.parametrize("q", ["xqzv", "chocolate cake recipe", "--", "!!!"])
 async def test_search_returns_no_clients_for_junk(
     db_client: AsyncClient, ids: dict[str, str], q: str

@@ -52,10 +52,10 @@
 
 **Decision.**
 
-- Clients: name, email and description are normalized in Python (NFKD, accent marks dropped,
-  casefolded, letters such as `ø`, `ł`, `æ` mapped) into `clients.search_text`, with a trigram
-  GIN index. Whole-word matches rank first, then matches inside a word (`LIKE`), then typos
-  (`word_similarity` of at least 0.5, via the index-assisted `<%`).
+- Clients: name, email and description are transliterated to ASCII with `anyascii` (accents
+  dropped, other scripts romanized: `Иван` → `ivan`) and lowercased into `clients.search_text`,
+  with a trigram GIN index. Whole-word matches rank first, then matches inside a word (`LIKE`),
+  then typos (`word_similarity` of at least 0.5, via the index-assisted `<%`).
 - Documents: chunks with `bge-small-en-v1.5` embeddings in `document_chunks` (HNSW, cosine), and
   a generated `tsvector` over title and content. The nearest 200 chunks (best chunk per document,
   top 50) and the top 50 full-text matches on any query word, ranked by `ts_rank_cd` divided by
@@ -77,8 +77,12 @@
   top-1 and 13/13 recall@5. `pg_trgm` matched every substring, case and accent case, and typos
   (`neviswelth` → `neviswealth` 0.64, noise 0.25 or below).
 - Built-in full-text search is enough: BM25 (ParadeDB, AGPL) gave the same results.
-- Normalization in Python, not `unaccent`: indexing `unaccent()` needs an IMMUTABLE wrapper
-  function, and functions are an Atlas Pro feature.
+- Normalization in Python with `anyascii` (ISC license), not `unaccent`: indexing `unaccent()`
+  needs an IMMUTABLE wrapper function. Functions are an Atlas Pro feature (Atlas 1.3.3 refuses
+  one in `schema.sql` without `atlas login`, checked 2026-10-12). Kept in `docker/initdb`
+  instead, the function would sit outside the versioned migrations and need a manual `REINDEX`
+  whenever it changed. `anyascii` also romanizes other scripts, which `unaccent` doesn't
+  (`Unidecode` does too, but is GPL).
 - Reranker off: on 15 documents it matched plain vector order (18/20 top-1) at 80–220 ms per
   search, and the first spike's "utility bill first for address proof" didn't reproduce.
 - Length-normalized text rank: without it, long documents that repeat a common query word took
@@ -98,6 +102,10 @@
   Pro, 2026-10-12). With the reranker on, concurrent searches take turns on that one thread.
 - The models need ~380 MB of memory in the api (batches of 4; the defaults peaked at 1.2 GB) and
   add ~150 MB to the image.
+- Transliteration is approximate: Han characters become Mandarin pinyin without spaces
+  (`李明` → `liming`, Japanese included) and emoji their names (`😀` → `:grinning:`). Queries
+  are mapped the same way, so exact matches still work. After changing it, `just reembed`
+  refreshes existing clients.
 - No relevance cutoff: neither cross-encoder scores nor cosine similarity separate junk from
   relevant results without losing recall. Documents are capped, so a junk query still returns
   the nearest ones.

@@ -143,10 +143,11 @@ curl -s -X POST localhost:8000/clients -H 'Content-Type: application/json' \
 
 ## How search works
 
-- **Clients:** name, email and description are stored lowercased and without accents
-  (`search_text`). Matches containing the query as a whole word come first, then ones containing
-  it inside a word, then typos (`pg_trgm` word similarity of at least 0.5). Queries shorter than
-  three characters match whole words only.
+- **Clients:** name, email and description are stored transliterated to ASCII and lowercased
+  (`search_text`, with `anyascii`), so case and accents don't matter and `ivan` finds `Иван`.
+  Matches containing the query as a whole word come first, then ones containing it inside a word,
+  then typos (`pg_trgm` word similarity of at least 0.5). Queries shorter than three characters
+  match whole words only.
 - **Documents:** content is split into overlapping chunks, each embedded with
   `BAAI/bge-small-en-v1.5`. The chunks nearest to the query (pgvector) and the documents
   containing any of its words (Postgres full-text search, English stemming, ranked relative to
