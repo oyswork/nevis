@@ -56,8 +56,10 @@ stack starts without network access. `just down` stops everything; data stays in
 `GET /search` takes `q` (1–200 characters), `clients_limit` (0–50, default 10) and
 `documents_limit` (0–20, default 5). It returns clients first, then documents; a document hit
 carries the document without its content (read that with `GET /documents/{id}`) and the chunk
-that matched best. Endpoints return 503 when Postgres is unreachable; errors other than 422 have
-the body `{"detail": "<message>"}`. Full schemas and examples are in the Swagger UI.
+that matched best. Endpoints return 503 when Postgres is unreachable; a document upload also
+returns 503, with `Retry-After`, when too many documents are already waiting to be embedded.
+Errors other than 422 have the body `{"detail": "<message>"}`. Full schemas and examples are in
+the Swagger UI.
 
 **Search is consistent immediately:** a client or document is searchable as soon as its `POST`
 returns.

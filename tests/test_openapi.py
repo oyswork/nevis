@@ -77,6 +77,7 @@ def test_search_takes_a_required_q_and_returns_an_array(openapi: Schema) -> None
         ("/clients/{client_id}/documents", "post", "404"),
         ("/documents/{document_id}", "get", "404"),
         ("/search", "get", "503"),
+        ("/clients/{client_id}/documents", "post", "503"),
     ],
 )
 def test_error_responses_document_their_body(
@@ -85,3 +86,10 @@ def test_error_responses_document_their_body(
     error = component(openapi, openapi["paths"][path][method], status)
 
     assert error["properties"]["detail"]["type"] == "string"
+
+
+@pytest.mark.unit
+def test_document_upload_documents_retry_after_on_503(openapi: Schema) -> None:
+    response = openapi["paths"]["/clients/{client_id}/documents"]["post"]["responses"]["503"]
+
+    assert response["headers"]["Retry-After"]["schema"]["type"] == "integer"

@@ -19,9 +19,11 @@ from nevis.embeddings import (
     EMBEDDING_MODEL,
     MAX_DOCUMENT_CALLS,
     MAX_QUERY_CALLS,
+    MAX_WAITING_DOCUMENTS,
     ONNX_THREADS,
     RERANKER_MODEL,
     Embedder,
+    EmbeddingQueueFullError,
     Reranker,
     create_embedder,
     create_reranker,
@@ -196,6 +198,37 @@ async def test_queries_do_not_wait_behind_document_embedding(
     finally:
         release.set()
         await asyncio.gather(*documents)
+
+
+@pytest.mark.unit
+async def test_documents_beyond_the_waiting_limit_are_refused_without_running_the_model(
+    fake_text_embedding: NonCallableMagicMock,
+) -> None:
+    release = threading.Event()
+
+    def blocked_passage_embed(texts: list[str], **_: object) -> list[np.ndarray]:
+        release.wait(timeout=5)
+        return [np.array([1.0], dtype=np.float32) for _ in texts]
+
+    model = fake_text_embedding.return_value
+    model.passage_embed.side_effect = blocked_passage_embed
+    embedder = await create_embedder(EmbeddingSettings())
+    # Both threads busy and the queue full.
+    admitted = [
+        asyncio.create_task(embedder.embed_passages(["admitted"]))
+        for _ in range(MAX_DOCUMENT_CALLS + MAX_WAITING_DOCUMENTS)
+    ]
+    await asyncio.sleep(0)
+    try:
+        with pytest.raises(EmbeddingQueueFullError):
+            await embedder.embed_passages(["refused"])
+    finally:
+        release.set()
+        await asyncio.gather(*admitted)
+
+    assert all(call.args[0] == ["admitted"] for call in model.passage_embed.call_args_list)
+    # The queue drained, so there is room again.
+    assert await embedder.embed_passages(["later"]) == [[1.0]]
 
 
 @pytest.mark.unit

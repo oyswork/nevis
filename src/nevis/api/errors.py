@@ -7,6 +7,7 @@ from pydantic import BaseModel
 CLIENT_NOT_FOUND_DETAIL = "Client not found"
 DOCUMENT_NOT_FOUND_DETAIL = "Document not found"
 DUPLICATE_EMAIL_DETAIL = "A client with this email already exists"
+EMBEDDING_QUEUE_FULL_DETAIL = "Too many documents are waiting to be processed; retry later"
 
 
 class ErrorResponse(BaseModel):

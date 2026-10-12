@@ -1,12 +1,20 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from nevis.api.errors import CLIENT_NOT_FOUND_DETAIL, DOCUMENT_NOT_FOUND_DETAIL, error_response
-from nevis.db import DATABASE_UNAVAILABLE_RESPONSES, PoolDep
+from nevis.api.errors import (
+    CLIENT_NOT_FOUND_DETAIL,
+    DOCUMENT_NOT_FOUND_DETAIL,
+    EMBEDDING_QUEUE_FULL_DETAIL,
+    error_response,
+)
+from nevis.db import DATABASE_UNAVAILABLE_DESCRIPTION, DATABASE_UNAVAILABLE_RESPONSES, PoolDep
 from nevis.documents import repository
 from nevis.documents.schemas import DocumentCreate, DocumentRead
-from nevis.embeddings import EmbedderDep
+from nevis.embeddings import QUEUE_FULL_RETRY_AFTER_SECONDS, EmbedderDep, EmbeddingQueueFullError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["documents"])
 
@@ -16,7 +24,18 @@ router = APIRouter(tags=["documents"])
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_404_NOT_FOUND: error_response(CLIENT_NOT_FOUND_DETAIL),
-        **DATABASE_UNAVAILABLE_RESPONSES,
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            **error_response(
+                f"{DATABASE_UNAVAILABLE_DESCRIPTION}, or {EMBEDDING_QUEUE_FULL_DETAIL.lower()}"
+                " (then with Retry-After)"
+            ),
+            "headers": {
+                "Retry-After": {
+                    "description": "Seconds to wait before retrying",
+                    "schema": {"type": "integer"},
+                }
+            },
+        },
     },
 )
 async def create_document(
@@ -29,11 +48,20 @@ async def create_document(
 
     It is searchable as soon as this returns. If the worker has a local summarization model,
     `summary` is filled in later (read it back with GET /documents/{id}); otherwise it stays null.
+    When too many documents are already waiting to be processed, nothing is stored and the
+    response is 503 with Retry-After.
     """
     try:
         document = await repository.create_document(pool, embedder, client_id, payload)
     except repository.ClientNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, CLIENT_NOT_FOUND_DETAIL) from exc
+    except EmbeddingQueueFullError as exc:
+        logger.warning("Embedding queue full: refused a document for client %s", client_id)
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            EMBEDDING_QUEUE_FULL_DETAIL,
+            headers={"Retry-After": str(QUEUE_FULL_RETRY_AFTER_SECONDS)},
+        ) from exc
     return DocumentRead.model_validate(document)
 
 

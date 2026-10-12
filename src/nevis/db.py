@@ -44,10 +44,11 @@ DATABASE_UNAVAILABLE_ERRORS: tuple[type[Exception], ...] = (
 )
 # OpenAPI `responses` entry for routes that touch the database. Any: matches the type of
 # FastAPI's `responses` parameter, whose values are free-form OpenAPI objects.
+DATABASE_UNAVAILABLE_DESCRIPTION = (
+    f"{DATABASE_UNAVAILABLE_DETAIL} or {DATABASE_TIMEOUT_DETAIL.lower()}"
+)
 DATABASE_UNAVAILABLE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    status.HTTP_503_SERVICE_UNAVAILABLE: error_response(
-        f"{DATABASE_UNAVAILABLE_DETAIL} or {DATABASE_TIMEOUT_DETAIL.lower()}"
-    )
+    status.HTTP_503_SERVICE_UNAVAILABLE: error_response(DATABASE_UNAVAILABLE_DESCRIPTION)
 }
 
 # A `type` alias is evaluated lazily: asyncpg.Pool is generic only in asyncpg-stubs,

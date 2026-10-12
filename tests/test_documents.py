@@ -5,6 +5,9 @@ from unittest.mock import NonCallableMagicMock
 import pytest
 from httpx2 import AsyncClient
 
+from nevis.api.errors import EMBEDDING_QUEUE_FULL_DETAIL
+from nevis.embeddings import QUEUE_FULL_RETRY_AFTER_SECONDS, EmbeddingQueueFullError
+
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
 DOCUMENT = {
     "title": "Utility bill March",
@@ -85,6 +88,21 @@ async def test_create_document_returns_503_when_database_is_unreachable(
     response = await client.post(f"/clients/{SOME_ID}/documents", json=DOCUMENT)
 
     assert response.status_code == 503
+
+
+@pytest.mark.unit
+async def test_create_document_returns_503_with_retry_after_when_too_many_documents_wait(
+    client: AsyncClient, fake_pool: NonCallableMagicMock, fake_embedder: NonCallableMagicMock
+) -> None:
+    fake_pool.fetchval.return_value = True  # the client exists
+    fake_embedder.embed_passages.side_effect = EmbeddingQueueFullError
+
+    response = await client.post(f"/clients/{SOME_ID}/documents", json=DOCUMENT)
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == str(QUEUE_FULL_RETRY_AFTER_SECONDS)
+    assert response.json() == {"detail": EMBEDDING_QUEUE_FULL_DETAIL}
+    fake_pool.acquire.assert_not_called()
 
 
 @pytest.fixture

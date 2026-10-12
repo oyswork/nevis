@@ -30,17 +30,46 @@ BATCH_SIZE = 4
 # so they never wait behind a long document, which takes seconds to embed.
 MAX_DOCUMENT_CALLS = 2
 MAX_QUERY_CALLS = 1
+# Documents that may wait for the document lane beyond the ones it runs. One more is refused
+# (EmbeddingQueueFullError, answered with 503 and Retry-After) rather than queued: at seconds per
+# long document, the last in a longer queue would wait minutes with its request open.
+MAX_WAITING_DOCUMENTS = 8
+# How long a refused upload is told to wait: about one long document's embedding time.
+QUEUE_FULL_RETRY_AFTER_SECONDS = 5
 
-# Their own pools rather than the loop's default executor, which queued calls would otherwise
-# fill, stalling everything else that uses it (DNS lookups included). Bound to no event loop.
-_document_executor = ThreadPoolExecutor(
-    max_workers=MAX_DOCUMENT_CALLS, thread_name_prefix="onnx-documents"
-)
-_query_executor = ThreadPoolExecutor(max_workers=MAX_QUERY_CALLS, thread_name_prefix="onnx-queries")
+
+class EmbeddingQueueFullError(Exception):
+    """Too many documents are waiting to be embedded; retry shortly."""
 
 
 async def _run[T](executor: ThreadPoolExecutor, function: Callable[[], T]) -> T:
     return await asyncio.get_running_loop().run_in_executor(executor, function)
+
+
+class _DocumentLane:
+    """The document threads, admitting MAX_WAITING_DOCUMENTS calls beyond those running."""
+
+    def __init__(self) -> None:
+        self._executor = ThreadPoolExecutor(
+            max_workers=MAX_DOCUMENT_CALLS, thread_name_prefix="onnx-documents"
+        )
+        # Running or waiting. Only the event loop's thread changes it, so it needs no lock.
+        self._admitted = 0
+
+    async def run[T](self, function: Callable[[], T]) -> T:
+        if self._admitted >= MAX_DOCUMENT_CALLS + MAX_WAITING_DOCUMENTS:
+            raise EmbeddingQueueFullError
+        self._admitted += 1
+        try:
+            return await _run(self._executor, function)
+        finally:
+            self._admitted -= 1
+
+
+# Their own pools rather than the loop's default executor, which queued calls would otherwise
+# fill, stalling everything else that uses it (DNS lookups included). Bound to no event loop.
+_documents = _DocumentLane()
+_query_executor = ThreadPoolExecutor(max_workers=MAX_QUERY_CALLS, thread_name_prefix="onnx-queries")
 
 
 class Embedder:
@@ -48,12 +77,14 @@ class Embedder:
         self._model = model
 
     async def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
-        """One vector per text, in order. No instruction prefix: it hurt retrieval in tests."""
+        """One vector per text, in order. No instruction prefix: it hurt retrieval in tests.
+
+        Raises EmbeddingQueueFullError when MAX_WAITING_DOCUMENTS calls are already waiting.
+        """
         if not texts:
             return []
         texts = list(texts)
-        return await _run(
-            _document_executor,
+        return await _documents.run(
             lambda: [
                 _to_floats(vector)
                 for vector in self._model.passage_embed(texts, batch_size=BATCH_SIZE)
