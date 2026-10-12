@@ -1,5 +1,7 @@
 """The OpenAPI document keeps the contract the assignment specifies (paths, fields, formats)."""
 
+import tomllib
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -93,3 +95,11 @@ def test_document_upload_documents_retry_after_on_503(openapi: Schema) -> None:
     response = openapi["paths"]["/clients/{client_id}/documents"]["post"]["responses"]["503"]
 
     assert response["headers"]["Retry-After"]["schema"]["type"] == "integer"
+
+
+@pytest.mark.unit
+def test_the_documented_api_version_is_the_project_version(openapi: Schema) -> None:
+    pyproject = Path(__file__).parents[1] / "pyproject.toml"
+    project_version = tomllib.loads(pyproject.read_text())["project"]["version"]
+
+    assert openapi["info"]["version"] == project_version

@@ -38,7 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             await pool.close()
 
-    app = FastAPI(title="Nevis Search API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Nevis Search API", version="0.2.0", lifespan=lifespan)
     for error in DATABASE_UNAVAILABLE_ERRORS:
         app.add_exception_handler(error, database_unavailable_handler)
     app.add_exception_handler(TimeoutError, database_timeout_handler)
