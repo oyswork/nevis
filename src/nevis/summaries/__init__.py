@@ -1,1 +1,1 @@
-"""Document summaries, from a locally running model and only if one is configured."""
+"""Document summaries, from a configured model (local or hosted), if there is one."""

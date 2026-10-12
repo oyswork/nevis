@@ -43,7 +43,7 @@ class DocumentRead(BaseModel):
     client_id: uuid.UUID
     title: str
     content: str
-    # Null until summarized, and always null without a local summarization model.
+    # Null until summarized, and always null without a summarization model.
     summary: str | None
     created_at: datetime.datetime
 

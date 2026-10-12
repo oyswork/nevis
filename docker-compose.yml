@@ -90,9 +90,11 @@ services:
       - ./src:/app/src:ro
     environment:
       NEVIS_DATABASE_URL: *database-url
-      # Optional local summarization model (see .env.example); empty: summaries stay null.
+      # Optional summarization model, local or hosted (see .env.example); empty: summaries stay
+      # null.
       NEVIS_SUMMARY_API_URL: ${NEVIS_SUMMARY_API_URL:-}
       NEVIS_SUMMARY_MODEL: ${NEVIS_SUMMARY_MODEL:-}
+      NEVIS_SUMMARY_API_KEY: ${NEVIS_SUMMARY_API_KEY:-}
     # Lets the worker reach a model running on the host (e.g. Ollama) on Linux as on macOS.
     extra_hosts:
       - "host.docker.internal:host-gateway"

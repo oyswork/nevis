@@ -31,7 +31,7 @@ CREATE TABLE documents (
     client_id uuid NOT NULL,
     title varchar(200) NOT NULL,
     content text NOT NULL,
-    -- Filled in later, and only if a local summarization model is configured.
+    -- Filled in later, and only if a summarization model is configured.
     summary text,
     -- Summary worker bookkeeping (nevis.summaries). summary_locked_until is the lease of the
     -- worker that claimed the document, or the time of the next attempt after a failure; NULL

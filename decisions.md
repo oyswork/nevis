@@ -130,20 +130,31 @@
 - Queries under three characters, and very common substrings, scan clients rather than use the
   trigram index; fine at thousands of clients.
 
-## Summaries: local model only, optional
+## Summaries: any OpenAI-compatible model, optional
 
 **Decision.**
 
-- `summary` is filled in by the summary worker (below) calling a locally running model over
-  the OpenAI-compatible chat API (Ollama, LM Studio, llama.cpp, vLLM), set by
-  `NEVIS_SUMMARY_API_URL` + `NEVIS_SUMMARY_MODEL`.
+- `summary` is filled in by the summary worker (below) calling a model over the
+  OpenAI-compatible chat API, set by `NEVIS_SUMMARY_API_URL` + `NEVIS_SUMMARY_MODEL`: a local
+  server (Ollama, LM Studio, llama.cpp, vLLM) or a hosted provider, whose key goes in
+  `NEVIS_SUMMARY_API_KEY` and is sent as a Bearer token.
 - Unset: the worker idles, `summary` stays null.
-- No API key setting, so hosted LLM APIs aren't an option by accident.
+
+**Why.**
+
+- One protocol covers both: local servers and most hosted providers (OpenAI, OpenRouter, Groq,
+  Mistral, Gemini's and Anthropic's compatibility endpoints) serve it, so no provider SDK.
+- Local by default: documents hold clients' personal data, and a local model keeps them on the
+  machine. A hosted model needs a key, and setting one is the explicit decision to send document
+  content to that provider.
+- The key is a `SecretStr`: it never appears in a settings repr or a log line.
 
 **Trade-offs.**
 
 - Asynchronous: `POST` returns `summary: null`; read it later with `GET /documents/{id}`.
-- Input is cut to 12k characters to fit small local context windows.
+- Input is cut to 12k characters: it fits small local context windows and bounds what a hosted
+  call costs.
+- With a hosted model, document content leaves the server for that provider, under its terms.
 - A summary is written once, never refreshed.
 - Not verified against a real model in tests: the protocol is tested with a mock transport.
 

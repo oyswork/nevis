@@ -1,7 +1,7 @@
 """The summary worker: ``python -m nevis.summaries.worker``.
 
 A separate process from the api. It claims documents without a summary one at a time under a
-lease, summarizes them with the local model and writes the summary once. It is woken by
+lease, summarizes them with the model and writes the summary once. It is woken by
 LISTEN/NOTIFY when the api stores a document, and sweeps periodically in any case, so a missed
 notification, a dropped connection or an expired lease only delays a summary.
 

@@ -46,7 +46,7 @@ async def create_document(
 ) -> DocumentRead:
     """Store a document for the client.
 
-    It is searchable as soon as this returns. If the worker has a local summarization model,
+    It is searchable as soon as this returns. If the worker has a summarization model,
     `summary` is filled in later (read it back with GET /documents/{id}); otherwise it stays null.
     When too many documents are already waiting to be processed, nothing is stored and the
     response is 503 with Retry-After.

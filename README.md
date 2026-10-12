@@ -187,7 +187,7 @@ flowchart LR
 
     subgraph summaries["summaries (optional)"]
         worker["summary worker"]
-        model["local model<br/>(OpenAI-compatible)"]
+        model["summary model, local or hosted<br/>(OpenAI-compatible)"]
     end
 
     post_client --> normalize --> clients
@@ -220,12 +220,12 @@ returns. Searches embed on a thread of their own and never wait behind a long do
 - **Consistency:** a document's chunks are embedded before its transaction and committed with
   it, so there is no indexing step to wait for.
 
-## Summaries (optional, local model only)
+## Summaries (optional)
 
-Documents get a `summary` only if a locally running model with an OpenAI-compatible API is
-configured; otherwise it stays `null`. The `worker` service writes summaries (the api never
-calls the model), so the settings are the worker's. With [Ollama](https://ollama.com) on the
-host:
+Documents get a `summary` only if a model with an OpenAI-compatible chat API is configured;
+otherwise it stays `null`. The `worker` service writes summaries (the api never calls the model),
+so the settings are the worker's. The model can run locally, so documents never leave the
+machine, or at a hosted provider. With [Ollama](https://ollama.com) on the host:
 
 ```sh
 ollama pull llama3.2
@@ -236,8 +236,23 @@ ENV
 just up
 ```
 
-On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the worker container can reach it. The
-summary appears shortly after the document is created: `GET /documents/{id}`. Without the
+On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the worker container can reach it.
+
+A hosted provider with an OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq, Mistral, and
+Gemini's or Anthropic's compatibility endpoints) takes its base URL, a model id and an API key,
+sent as a Bearer token. This sends document content (up to 12k characters each) to that
+provider:
+
+```sh
+cat >> .env <<'ENV'
+NEVIS_SUMMARY_API_URL=https://api.openai.com/v1
+NEVIS_SUMMARY_MODEL=<the provider's model id>
+NEVIS_SUMMARY_API_KEY=<your API key>
+ENV
+just up
+```
+
+The summary appears shortly after the document is created: `GET /documents/{id}`. Without the
 settings, the worker logs one line and idles (`just logs worker`).
 
 ## Development

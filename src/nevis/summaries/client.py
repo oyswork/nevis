@@ -1,7 +1,7 @@
-"""Summaries from a locally running model over the OpenAI-compatible chat API.
+"""Summaries from a model over the OpenAI-compatible chat API.
 
-Ollama, LM Studio, llama.cpp and vLLM all serve it. There is deliberately no API key setting:
-summaries come only from a local model (decisions.md).
+Local servers (Ollama, LM Studio, llama.cpp, vLLM) and most hosted providers serve it; hosted ones
+take the API key as a Bearer token.
 """
 
 from typing import Protocol
@@ -11,10 +11,11 @@ from pydantic import BaseModel
 
 from nevis.config import SummarySettings
 
-# Fits the context window of small local models; longer documents are summarized from the start.
+# Fits the context window of small local models and bounds what a hosted call costs; longer
+# documents are summarized from the start.
 CONTENT_MAX_CHARS = 12_000
-# Local models are slow. Must stay under the summary worker's lease (nevis.summaries.worker),
-# or a slow summary runs twice.
+# Models can be slow, local ones especially. Must stay under the summary worker's lease
+# (nevis.summaries.worker), or a slow summary runs twice.
 REQUEST_TIMEOUT_SECONDS = 90
 SYSTEM_PROMPT = (
     "You summarize documents for a financial advisor. Reply with two or three plain sentences: "
@@ -44,8 +45,8 @@ class Summarizer(Protocol):
     async def aclose(self) -> None: ...
 
 
-class LocalSummarizer:
-    """A Summarizer backed by a local model's OpenAI-compatible chat API."""
+class ChatSummarizer:
+    """A Summarizer backed by an OpenAI-compatible chat API."""
 
     def __init__(self, http_client: AsyncClient, model: str) -> None:
         self._http_client = http_client
@@ -74,11 +75,16 @@ class LocalSummarizer:
         await self._http_client.aclose()
 
 
-def create_summarizer(settings: SummarySettings) -> LocalSummarizer | None:
+def create_summarizer(settings: SummarySettings) -> ChatSummarizer | None:
     """The configured summarizer, or None: then documents are never summarized."""
     if settings.summary_api_url is None or settings.summary_model is None:
         return None
     # Trailing slash: request paths are joined onto the URL's path (e.g. /v1/).
     base_url = str(settings.summary_api_url).rstrip("/") + "/"
-    http_client = AsyncClient(base_url=base_url, timeout=REQUEST_TIMEOUT_SECONDS)
-    return LocalSummarizer(http_client, settings.summary_model)
+    headers = (
+        {}
+        if settings.summary_api_key is None
+        else {"Authorization": f"Bearer {settings.summary_api_key.get_secret_value()}"}
+    )
+    http_client = AsyncClient(base_url=base_url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
+    return ChatSummarizer(http_client, settings.summary_model)

@@ -1,12 +1,13 @@
+import functools
 import json
 
 import httpx2
 import pytest
 from httpx2 import AsyncClient
-from pydantic import HttpUrl, PostgresDsn, ValidationError
+from pydantic import HttpUrl, PostgresDsn, SecretStr, ValidationError
 
 from nevis.config import Settings, SummarySettings
-from nevis.summaries.client import CONTENT_MAX_CHARS, LocalSummarizer, create_summarizer
+from nevis.summaries.client import CONTENT_MAX_CHARS, ChatSummarizer, create_summarizer
 
 CLIENT = {"first_name": "John", "last_name": "Doe", "email": "john.doe@neviswealth.com"}
 DOCUMENT = {"title": "Utility bill", "content": "Electricity bill from Vattenfall, CHF 84.20."}
@@ -17,7 +18,7 @@ def completion(text: str) -> dict[str, object]:
 
 
 @pytest.mark.unit
-async def test_summarizer_sends_the_document_to_the_local_model_and_returns_its_reply() -> None:
+async def test_summarizer_sends_the_document_to_the_model_and_returns_its_reply() -> None:
     requests: list[httpx2.Request] = []
 
     def reply(request: httpx2.Request) -> httpx2.Response:
@@ -27,7 +28,7 @@ async def test_summarizer_sends_the_document_to_the_local_model_and_returns_its_
     http_client = AsyncClient(
         base_url="http://ollama:11434/v1/", transport=httpx2.MockTransport(reply)
     )
-    summarizer = LocalSummarizer(http_client, model="llama3.2")
+    summarizer = ChatSummarizer(http_client, model="llama3.2")
 
     summary = await summarizer.summarize("Utility bill", "x" * (CONTENT_MAX_CHARS + 100))
 
@@ -55,7 +56,7 @@ async def test_summarizer_raises_when_the_model_gives_no_summary(response: httpx
     )
 
     with pytest.raises((httpx2.HTTPStatusError, ValueError)):
-        await LocalSummarizer(http_client, model="m").summarize("t", "c")
+        await ChatSummarizer(http_client, model="m").summarize("t", "c")
 
 
 @pytest.mark.unit
@@ -73,15 +74,74 @@ async def test_summarizer_is_created_from_the_summary_settings() -> None:
     await summarizer.aclose()
 
 
+def capture_requests(monkeypatch: pytest.MonkeyPatch) -> list[httpx2.Request]:
+    """Make create_summarizer's HTTP client answer locally and record what it sends."""
+    requests: list[httpx2.Request] = []
+
+    def reply(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        return httpx2.Response(200, json=completion("A bill."))
+
+    transport = httpx2.MockTransport(reply)
+    monkeypatch.setattr(
+        "nevis.summaries.client.AsyncClient", functools.partial(AsyncClient, transport=transport)
+    )
+    return requests
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("api_key", "authorization"), [(SecretStr("sk-test"), "Bearer sk-test"), (None, None)]
+)
+async def test_summarizer_sends_the_api_key_as_a_bearer_token_only_when_set(
+    monkeypatch: pytest.MonkeyPatch, api_key: SecretStr | None, authorization: str | None
+) -> None:
+    requests = capture_requests(monkeypatch)
+    summarizer = create_summarizer(
+        SummarySettings(
+            summary_api_url=HttpUrl("https://llm.example/v1"),
+            summary_model="m",
+            summary_api_key=api_key,
+        )
+    )
+    assert summarizer is not None
+
+    await summarizer.summarize("t", "c")
+    await summarizer.aclose()
+
+    [request] = requests
+    assert request.headers.get("authorization") == authorization
+
+
+@pytest.mark.unit
+def test_summary_api_key_needs_the_url_and_model() -> None:
+    with pytest.raises(ValidationError, match="NEVIS_SUMMARY_API_KEY"):
+        SummarySettings(summary_api_key=SecretStr("sk-test"))
+
+
+@pytest.mark.unit
+def test_summary_api_key_stays_out_of_the_settings_repr() -> None:
+    settings = SummarySettings(
+        summary_api_url=HttpUrl("https://llm.example/v1"),
+        summary_model="m",
+        summary_api_key=SecretStr("sk-test"),
+    )
+
+    assert "sk-test" not in repr(settings)
+    assert "sk-test" not in str(settings)
+
+
 @pytest.mark.unit
 def test_summary_settings_treat_empty_values_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     # docker-compose passes unset variables through as empty strings.
     monkeypatch.setenv("NEVIS_SUMMARY_API_URL", "")
     monkeypatch.setenv("NEVIS_SUMMARY_MODEL", "")
+    monkeypatch.setenv("NEVIS_SUMMARY_API_KEY", "")
 
     settings = SummarySettings()
 
     assert (settings.summary_api_url, settings.summary_model) == (None, None)
+    assert settings.summary_api_key is None
 
 
 @pytest.mark.unit
