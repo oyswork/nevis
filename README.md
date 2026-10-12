@@ -14,9 +14,11 @@ Needs Docker. [`just`](https://just.systems) runs the everyday commands; plain `
 works too.
 
 ```sh
-just up                          # or: docker compose up --build --detach --wait
-open http://localhost:8000/docs  # Swagger UI; OpenAPI at /openapi.json
+just up    # or: docker compose up --build --detach --wait
 ```
+
+Then open the Swagger UI at http://localhost:8000/docs (OpenAPI at `/openapi.json`). Port 8000
+taken? Set `API_PORT` in `.env` (see `.env.example`); the examples below assume 8000.
 
 The first build downloads the embedding models (about 150 MB) into the image; after that the
 stack starts without network access. `just down` stops everything; data stays in `.data/` until

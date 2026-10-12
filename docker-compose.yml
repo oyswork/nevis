@@ -68,7 +68,7 @@ services:
       # Optional cross-encoder reranking of document search (see .env.example); empty: off.
       NEVIS_SEARCH_RERANK: ${NEVIS_SEARCH_RERANK:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -14,6 +14,7 @@ set dotenv-load := true
 compose := "docker compose"
 test_compose := "docker compose -f docker-compose.yml -f docker-compose.test.yml"
 dev_database_url := "postgresql://" + env("POSTGRES_USER", "nevis") + ":" + env("POSTGRES_PASSWORD", "nevis") + "@localhost:" + env("POSTGRES_PORT", "5432") + "/" + env("POSTGRES_DB", "nevis")
+api_port := env("API_PORT", "8000")
 
 # List the available recipes
 [group("help")]
@@ -24,7 +25,7 @@ help:
 [group("run")]
 up:
     {{ compose }} up --build --detach --wait
-    @echo "API: http://localhost:8000/docs  (logs: just logs)"
+    @echo "API: http://localhost:{{ api_port }}/docs  (logs: just logs)"
 
 # Run only the infrastructure (db, migrations) in Docker, no worker; then `just run`
 [group("run")]
@@ -36,7 +37,7 @@ infra:
 # Run the api on the host with auto-reload, against the infrastructure from `just infra`
 [group("run")]
 run: infra
-    NEVIS_DATABASE_URL={{ dev_database_url }} uv run uvicorn --factory nevis.main:create_app --reload
+    NEVIS_DATABASE_URL={{ dev_database_url }} uv run uvicorn --factory nevis.main:create_app --reload --port {{ api_port }}
 
 # Follow the logs of the dev stack (all services, or the given ones)
 [group("run")]
