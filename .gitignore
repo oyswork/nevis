@@ -11,3 +11,7 @@ htmlcov/
 
 # Local dev database (docker compose bind mount); `just clean` deletes it.
 .data/
+
+# Local only: Claude Code settings and plans, and the assignment text (not ours to publish).
+.claude/
+task.md

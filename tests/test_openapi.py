@@ -1,4 +1,4 @@
-"""The OpenAPI document keeps the contract task.md specifies (paths, fields, formats)."""
+"""The OpenAPI document keeps the contract the assignment specifies (paths, fields, formats)."""
 
 from typing import Any
 

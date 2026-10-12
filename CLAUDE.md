@@ -4,7 +4,7 @@ FastAPI + raw asyncpg + Postgres 16, which also does the searching: `pg_trgm` fo
 full-text search plus pgvector for documents, with local fastembed models baked into the image
 (`decisions.md`). A separate `worker` service writes document summaries. Schema in
 `schema/schema.sql`; Atlas generates and applies versioned migrations from it. Assignment spec:
-`task.md`.
+`task.md` (local only: gitignored, not ours to publish).
 
 ## Commands
 
