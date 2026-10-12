@@ -44,9 +44,6 @@
 - Forgetting to run `migrate diff` after editing `schema.sql` leaves the migrations behind the
   file, and nothing checks for it automatically yet. Applied migrations are immutable: fixes go
   in a new migration, not an edit.
-- The history was squashed into one migration before the first deploy, dropping the outbox
-  and summary-job steps that were added and removed during development. Databases migrated
-  before that had to be recreated; from the first deploy on, history is only appended.
 
 ## Search: Postgres only, with `pg_trgm` and `pgvector`
 
@@ -102,13 +99,13 @@
   Pro, 2026-10-12). With the reranker on, concurrent searches take turns on that one thread.
 - The models need ~380 MB of memory in the api (batches of 4; the defaults peaked at 1.2 GB) and
   add ~150 MB to the image.
+- No relevance cutoff: neither cross-encoder scores nor cosine similarity separate junk from
+  relevant results without losing recall. Documents are capped, so a junk query still returns
+  the nearest ones.
 - Transliteration is approximate: Han characters become Mandarin pinyin without spaces
   (`李明` → `liming`, Japanese included) and emoji their names (`😀` → `:grinning:`). Queries
   are mapped the same way, so exact matches still work. After changing it, `just reembed`
   refreshes existing clients.
-- No relevance cutoff: neither cross-encoder scores nor cosine similarity separate junk from
-  relevant results without losing recall. Documents are capped, so a junk query still returns
-  the nearest ones.
 - Queries are plain words: operators are stripped, so quoted phrases and `-word` become words
   matched with OR.
 - Full-text search sees raw text, so it's accent-sensitive; vector search covers documents that
@@ -127,51 +124,15 @@
 
 ## Search: Meilisearch, with Postgres as the source of truth
 
-*Superseded* by the section above. A spike showed Postgres matching Meilisearch's results
-without a second datastore, the outbox, the reindex path or the experimental `CONTAINS` filter.
-Kept for the record.
-
-**Decision.**
-
-- Meilisearch indexes clients and document chunks. The index is derived from Postgres and can
-  be rebuilt from it (`just reindex`).
-- Writes reach the index through a transactional outbox: the row and its outbox entry commit
-  together, and a background worker indexes them with retries. Search is eventually consistent.
-- Documents: hybrid search with Meilisearch's built-in Hugging Face embedder.
-- Clients: keyword search merged, in one federated multi-search, with the experimental
-  `CONTAINS` filter (`containsFilter`) for substring matches.
-
-**Why.**
-
-- Smaller, faster container than Elasticsearch (9.5.5 idles at ~1.4 GB with a 1 GB heap).
-- Easier setup: a single binary, settings over HTTP, no mappings or analyzers to tune.
-- Built-in embedder: no model or embedding code in the app. Elasticsearch's free license
-  refuses inference and the RRF/linear retrievers, so both would be app-side.
-- Morbid curiosity: the author wanted to try Meilisearch, and a test task is a good place to.
-
-**Trade-offs.**
-
-- No infix matching in regular search: whole words, a prefix on the last word, or typos.
-  `wealth` doesn't find `neviswealth`. `CONTAINS` covers it, but:
-  - it's experimental and may change between versions, so the image is pinned;
-  - it scans: ~13 ms across 4 fields at 100k clients;
-  - its hits score a flat 1.0, so they are weighted below keyword hits.
-- A second datastore: an outbox, a worker and a reindex path to maintain. New records are
-  briefly unsearchable.
-- Semantic scores never drop below ~0.73, even for nonsense, so no score threshold works:
-  - clients and documents are ranked separately, clients first (merging them let document noise
-    push out real client matches);
-  - documents are capped (`documents_limit`), not cut off: there is always a "closest" one;
-  - responses carry no score (hybrid order doesn't even follow `_rankingScore`).
-- Local embedders don't know domain links: "address proof" returns the utility bill, but not
-  first. Larger models (up to bge-large, e5-large) did no better; whole open synonym lists
-  (WordNet) added nothing over embeddings and bring sense noise (`bill` → `beak`).
-- Text without a word (`--`) is a placeholder search in Meilisearch (matches everything), so
-  keyword client search is skipped for it.
-- The first index setup downloads the embedding model (cached in a volume afterwards).
-- Rejected:
-  - Elasticsearch: stable `wildcard` substring matching, but see above.
-  - `pg_trgm` + `pgvector`: one datastore, but relevance features built by hand.
+*Superseded* by the section above; kept short for the record. Meilisearch indexed clients and
+document chunks (hybrid search with its built-in embedder), fed by a transactional outbox and a
+background worker, so search was eventually consistent. It has no infix matching (`wealth` didn't
+find `neviswealth`) except through the experimental `CONTAINS` filter, and it needed a second
+datastore with an outbox and a reindex path. A spike showed Postgres matching its results without
+any of that. Two findings carried over: semantic scores never dropped below ~0.73, even for
+nonsense, so there is no relevance cutoff and documents are capped instead; and neither larger local
+embedding models (up to bge-large, e5-large) nor open synonym lists (WordNet) did better on
+"address proof" than the small model.
 
 ## Summaries: local model only, optional
 

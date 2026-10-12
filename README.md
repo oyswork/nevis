@@ -1,12 +1,31 @@
 # Nevis Search API
 
 Search across advisor clients and their documents: clients by name, email or description
-(including part of a word), documents by meaning as well as words. Spec: [`task.md`](task.md).
+(including part of a word, so `NevisWealth` finds `john.doe@neviswealth.com`), documents by
+meaning as well as words (`address proof` finds a utility bill). Built as the Nevis home
+assignment.
 
 FastAPI and Postgres 16, which also does the searching: `pg_trgm` for clients, full-text search
 plus `pgvector` for documents. Embeddings come from a local model baked into the image; optional
 summaries come from a separate worker service. Why these, and the trade-offs:
 [`decisions.md`](decisions.md).
+
+## Reviewer's path
+
+1. [Quick start](#quick-start), then the [examples](#examples) or the Swagger UI.
+2. [How it fits together](#how-it-fits-together): one diagram of the data flow.
+3. The code, in request order:
+   - [`search/service.py`](src/nevis/search/service.py) runs the two searches;
+     [`search/clients.py`](src/nevis/search/clients.py) and
+     [`search/documents.py`](src/nevis/search/documents.py) are their SQL.
+   - [`documents/repository.py`](src/nevis/documents/repository.py): the write path (embed,
+     then one transaction).
+   - [`summaries/worker.py`](src/nevis/summaries/worker.py): the optional summary worker.
+   - [`tests/test_search.py`](tests/test_search.py): search behaviour as examples.
+4. [`decisions.md`](decisions.md): why, with measurements and trade-offs.
+
+Safe to skip: `deploy/` and `.github/workflows/deploy.yml` (the deployed server), `scripts/`
+(end-to-end and relevance tooling) and `schema/migrations/` (generated).
 
 ## Quick start
 
@@ -143,6 +162,47 @@ curl -s -X POST localhost:8000/clients -H 'Content-Type: application/json' \
 # 409 {"detail": "A client with this email already exists"}
 ```
 
+## How it fits together
+
+```mermaid
+flowchart LR
+    subgraph requests["requests"]
+        post_client["POST /clients"]
+        post_document["POST /clients/{id}/documents"]
+        get_search["GET /search?q="]
+    end
+
+    subgraph api["api (FastAPI)"]
+        normalize["normalize name, email,<br/>description into search_text"]
+        embed_chunks["split into overlapping chunks,<br/>embed them (document threads)"]
+        embed_query["embed the query<br/>(search thread)"]
+        client_search["client search: whole word,<br/>then part of a word, then typo"]
+        document_search["document search: vector + full text,<br/>fused (RRF), optional rerank"]
+    end
+
+    subgraph postgres["Postgres 16"]
+        clients[("clients<br/>trigram index")]
+        documents[("documents<br/>full-text index")]
+        chunks[("document_chunks<br/>HNSW vector index")]
+    end
+
+    subgraph summaries["summaries (optional)"]
+        worker["summary worker"]
+        model["local model<br/>(OpenAI-compatible)"]
+    end
+
+    post_client --> normalize --> clients
+    post_document --> embed_chunks -->|"one transaction + NOTIFY"| documents & chunks
+    get_search --> client_search --> clients
+    get_search --> embed_query --> document_search --> chunks & documents
+    documents -.->|"LISTEN, or a 60 s sweep:<br/>summary IS NULL"| worker
+    worker <-->|"content in,<br/>summary out"| model
+    worker -->|"summary,<br/>written once"| documents
+```
+
+Embedding happens before the transaction, so a document is searchable as soon as its `POST`
+returns. Searches embed on a thread of their own and never wait behind a long document.
+
 ## How search works
 
 - **Clients:** name, email and description are stored transliterated to ASCII and lowercased
@@ -197,10 +257,6 @@ settings, the worker logs one line and idles (`just logs worker`).
 
 Needs [uv](https://docs.astral.sh/uv/) for the host commands (`uv sync`). Configuration is
 read from `NEVIS_*` environment variables; `.env.example` lists the compose overrides.
-
-The migration history was squashed into one migration before the first deploy. A dev database
-created before that (with 7 applied migrations) is rejected by `just migrate`; recreate it with
-`just clean` and `just up`.
 
 The api records which embedding model produced the stored vectors and refuses to start when the
 code embeds with another one: after changing `EMBEDDING_MODEL`, run `just reembed --all`.

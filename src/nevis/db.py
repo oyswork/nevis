@@ -82,7 +82,8 @@ async def register_vector_codec(connection: asyncpg.Connection[asyncpg.Record]) 
 
 
 async def create_pool(settings: DatabaseSettings) -> DbPool:
-    # min_size=0 opens connections on first use, so the app can start before the database is up.
+    # min_size=0 opens connections on first use, so the summary worker can start before the
+    # database is up (its loop retries). The api can't: it checks the embedding model at startup.
     return await asyncpg.create_pool(
         str(settings.database_url),
         min_size=0,
