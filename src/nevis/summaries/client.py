@@ -18,8 +18,8 @@ CONTENT_MAX_CHARS = 12_000
 # (nevis.summaries.worker), or a slow summary runs twice.
 REQUEST_TIMEOUT_SECONDS = 90
 SYSTEM_PROMPT = (
-    "You summarize documents for a financial advisor. Reply with two or three plain sentences: "
-    "what the document is and its key facts. No preamble, no formatting."
+    "You summarize documents. Reply with two or three plain sentences: what the document is and "
+    "its key facts. No preamble, no formatting."
 )
 
 
